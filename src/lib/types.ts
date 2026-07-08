@@ -67,6 +67,17 @@ export interface Household {
   invite_code: string
 }
 
+export interface ShoppingItem {
+  id: string
+  household_id: string
+  name: string
+  quantity: string | null
+  checked_at: string | null
+  sort_order: number
+  created_by: string | null
+  created_at: string
+}
+
 /** Result of the eat_pack RPC. */
 export interface EatPackResult {
   log_id: string
