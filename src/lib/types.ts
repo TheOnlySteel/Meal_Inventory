@@ -39,14 +39,16 @@ export interface Meal {
   vit_c_mg: number | null
   vit_d_ug: number | null
   archived_at: string | null
+  household_id: string
   created_by: string | null
   created_at: string
   updated_at: string
 }
 
+/** household_id is filled server-side by a trigger from the user's membership. */
 export type MealInsert = Omit<
   Meal,
-  'id' | 'best_before' | 'archived_at' | 'created_by' | 'created_at' | 'updated_at'
+  'id' | 'best_before' | 'archived_at' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
 >
 
 export interface MealLogEntry {
@@ -54,8 +56,15 @@ export interface MealLogEntry {
   meal_id: string
   packs: number
   caused_depletion: boolean
+  household_id: string
   logged_at: string
   user_id: string | null
+}
+
+export interface Household {
+  id: string
+  name: string
+  invite_code: string
 }
 
 /** Result of the eat_pack RPC. */

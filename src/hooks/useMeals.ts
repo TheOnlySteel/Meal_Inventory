@@ -4,13 +4,21 @@ import { startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import type { EatPackResult, Meal, MealInsert, MealLogEntry } from '../lib/types'
 import { urgencySort } from '../lib/freshness'
+import { useHousehold } from './useHousehold'
 
+// Keys carry the household id so caches can't bleed across a create/join
+// switch; RLS does the actual scoping server-side.
 const MEALS_KEY = ['meals']
 const LOG_KEY = ['meal_log']
+export const mealsKey = (hid: string | null) => [...MEALS_KEY, hid]
+export const logKey = (hid: string | null) => [...LOG_KEY, hid]
 
 export function useMeals() {
+  const { household } = useHousehold()
+  const hid = household?.id ?? null
   return useQuery({
-    queryKey: MEALS_KEY,
+    queryKey: mealsKey(hid),
+    enabled: !!hid,
     queryFn: async (): Promise<Meal[]> => {
       const { data, error } = await supabase.from('meals').select('*')
       if (error) throw error
@@ -23,8 +31,11 @@ export function useMeals() {
 
 /** Today's consumption log with meal info, for the Today panel. */
 export function useTodayLog() {
+  const { household } = useHousehold()
+  const hid = household?.id ?? null
   return useQuery({
-    queryKey: [...LOG_KEY, 'today'],
+    queryKey: [...logKey(hid), 'today'],
+    enabled: !!hid,
     queryFn: async () => {
       const since = startOfDay(new Date()).toISOString()
       const { data, error } = await supabase
@@ -59,14 +70,19 @@ export function useRealtimeSync() {
   }, [qc])
 }
 
-function patchMealCache(qc: ReturnType<typeof useQueryClient>, id: string, patch: Partial<Meal>) {
-  qc.setQueryData<Meal[]>(MEALS_KEY, (old) =>
-    old?.map((m) => (m.id === id ? { ...m, ...patch } : m)),
-  )
+function patchMealCache(
+  qc: ReturnType<typeof useQueryClient>,
+  key: readonly unknown[],
+  id: string,
+  patch: Partial<Meal>,
+) {
+  qc.setQueryData<Meal[]>(key, (old) => old?.map((m) => (m.id === id ? { ...m, ...patch } : m)))
 }
 
 export function useMealMutations() {
   const qc = useQueryClient()
+  const { household } = useHousehold()
+  const key = mealsKey(household?.id ?? null)
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: MEALS_KEY })
     qc.invalidateQueries({ queryKey: LOG_KEY })
@@ -89,7 +105,7 @@ export function useMealMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, patch }) => patchMealCache(qc, id, patch),
+    onMutate: async ({ id, patch }) => patchMealCache(qc, key, id, patch),
     onSettled: invalidate,
   })
 
@@ -102,7 +118,7 @@ export function useMealMutations() {
     },
     onMutate: async (meal) => {
       const newQty = Math.max(meal.pack_quantity - 1, 0)
-      patchMealCache(qc, meal.id, {
+      patchMealCache(qc, key, meal.id, {
         pack_quantity: newQty,
         archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
       })
@@ -131,7 +147,7 @@ export function useMealMutations() {
       if (error) throw error
     },
     onMutate: async ({ id, archived }) =>
-      patchMealCache(qc, id, { archived_at: archived ? new Date().toISOString() : null }),
+      patchMealCache(qc, key, id, { archived_at: archived ? new Date().toISOString() : null }),
     onSettled: invalidate,
   })
 
@@ -141,7 +157,7 @@ export function useMealMutations() {
       if (error) throw error
     },
     onMutate: async (id) => {
-      qc.setQueryData<Meal[]>(MEALS_KEY, (old) => old?.filter((m) => m.id !== id))
+      qc.setQueryData<Meal[]>(key, (old) => old?.filter((m) => m.id !== id))
     },
     onSettled: invalidate,
   })

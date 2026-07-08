@@ -8,7 +8,7 @@ import type { Meal, MealInsert, MealType, StorageLocation } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
-import { supabase } from '../lib/supabase'
+import HouseholdSheet from '../components/HouseholdSheet'
 
 type Filter = 'active' | 'soon' | 'depleted'
 type Sort = 'urgency' | 'newest' | 'name' | 'packs'
@@ -28,6 +28,7 @@ export default function Manager() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Meal | null>(null)
   const [template, setTemplate] = useState<Meal | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const all = useMemo(() => meals ?? [], [meals])
   const active = useMemo(() => all.filter((m) => m.archived_at == null), [all])
@@ -128,10 +129,14 @@ export default function Manager() {
               Kiosk
             </Link>
             <button
-              onClick={() => supabase.auth.signOut()}
-              className="pressable text-[13px] font-semibold text-ink2"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Household settings"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
             >
-              Sign out
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 19.5c1.3-3 4-4.5 7-4.5s5.7 1.5 7 4.5" />
+              </svg>
             </button>
           </div>
         </div>
@@ -332,6 +337,8 @@ export default function Manager() {
           />
         </svg>
       </button>
+
+      {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
 
       {formOpen && (
         <MealFormSheet
