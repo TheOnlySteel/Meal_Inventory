@@ -1,9 +1,12 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from './hooks/useAuth'
+import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import Manager from './pages/Manager'
 import Dashboard from './pages/Dashboard'
+import Planner from './pages/Planner'
+import Shopping from './pages/Shopping'
 
 function Protected({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
@@ -24,13 +27,16 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
-        path="/"
         element={
           <Protected>
-            <Manager />
+            <AppLayout />
           </Protected>
         }
-      />
+      >
+        <Route path="/" element={<Manager />} />
+        <Route path="/planner" element={<Planner />} />
+        <Route path="/shopping" element={<Shopping />} />
+      </Route>
       <Route
         path="/dashboard"
         element={

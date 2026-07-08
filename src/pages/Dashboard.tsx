@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
-import { useMeals, useMealMutations, useRealtimeMeals } from '../hooks/useMeals'
+import { useMeals, useMealMutations, useRealtimeSync } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDateFull, fmtNum } from '../lib/format'
@@ -45,7 +45,7 @@ function useWakeLock() {
 }
 
 export default function Dashboard() {
-  useRealtimeMeals()
+  useRealtimeSync()
   useWakeLock()
   const now = useClock()
   const { data: meals, isLoading } = useMeals()

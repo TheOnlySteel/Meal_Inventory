@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMeals, useMealMutations, useRealtimeMeals, useTodayLog } from '../hooks/useMeals'
+import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum, todayISO } from '../lib/format'
@@ -13,7 +13,6 @@ type Filter = 'active' | 'soon' | 'depleted'
 type Sort = 'urgency' | 'newest' | 'name' | 'packs'
 
 export default function Manager() {
-  useRealtimeMeals()
   const { data: meals, isLoading, error } = useMeals()
   const { data: todayLog } = useTodayLog()
   const { addMeal, updateMeal, eatPack, undoEat, archiveMeal, deleteMeal } = useMealMutations()
@@ -217,7 +216,7 @@ export default function Manager() {
       )}
 
       {/* Meal list */}
-      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-28">
+      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-40">
         {isLoading &&
           [1, 2, 3].map((i) => <div key={i} className="skeleton h-24 w-full" />)}
 
@@ -284,7 +283,7 @@ export default function Manager() {
           setFormOpen(true)
         }}
         aria-label="New meal"
-        className="pressable fixed right-5 bottom-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow safe-b"
+        className="pressable fixed right-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow"
       >
         <svg width="24" height="24" viewBox="0 0 24 24">
           <path

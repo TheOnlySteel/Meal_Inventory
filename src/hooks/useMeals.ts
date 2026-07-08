@@ -40,12 +40,12 @@ export function useTodayLog() {
   })
 }
 
-/** Subscribe to realtime changes and invalidate caches (keeps kiosk live). */
-export function useRealtimeMeals() {
+/** Subscribe to realtime changes and invalidate caches (keeps every device live). */
+export function useRealtimeSync() {
   const qc = useQueryClient()
   useEffect(() => {
     const channel = supabase
-      .channel('meals-live')
+      .channel('household-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, () => {
         qc.invalidateQueries({ queryKey: MEALS_KEY })
       })
