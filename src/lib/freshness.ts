@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Meal } from './types'
+import type { Meal, StorageLocation } from './types'
 
 export type FreshnessKey = 'expired' | 'now' | 'soon' | 'fresh'
 
@@ -20,15 +20,30 @@ const COLORS: Record<FreshnessKey, string> = {
   fresh: 'var(--green)',
 }
 
-export function freshnessOf(meal: Pick<Meal, 'best_before' | 'prep_date'>, today = new Date()): Freshness {
+/**
+ * Days-left cutoffs for "eat now" / "eat soon", per storage location.
+ * A freezer meal three weeks from expiry is worth planning around; a fridge
+ * meal needs the nudge a day out.
+ */
+const THRESHOLDS: Record<StorageLocation, { now: number; soon: number }> = {
+  freezer: { now: 7, soon: 21 },
+  fridge: { now: 1, soon: 3 },
+  shelf: { now: 2, soon: 5 },
+}
+
+export function freshnessOf(
+  meal: Pick<Meal, 'best_before' | 'prep_date' | 'storage_location'>,
+  today = new Date(),
+): Freshness {
   const daysLeft = differenceInCalendarDays(parseISO(meal.best_before), today)
   const total = Math.max(differenceInCalendarDays(parseISO(meal.best_before), parseISO(meal.prep_date)), 1)
   const fraction = Math.min(Math.max(daysLeft / total, 0), 1)
+  const t = THRESHOLDS[meal.storage_location] ?? THRESHOLDS.freezer
 
   let key: FreshnessKey
   if (daysLeft < 0) key = 'expired'
-  else if (daysLeft <= 2) key = 'now'
-  else if (daysLeft <= 7) key = 'soon'
+  else if (daysLeft <= t.now) key = 'now'
+  else if (daysLeft <= t.soon) key = 'soon'
   else key = 'fresh'
 
   const label =

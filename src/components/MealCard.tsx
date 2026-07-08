@@ -1,4 +1,5 @@
 import type { Meal } from '../lib/types'
+import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDate, fmtNum } from '../lib/format'
 import FreshnessRing from './FreshnessRing'
@@ -32,6 +33,8 @@ export default function MealCard({
   const depleted = meal.archived_at != null
   const packsPct =
     meal.initial_pack_quantity > 0 ? meal.pack_quantity / meal.initial_pack_quantity : 0
+  const location = STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)
+  const typeLabel = MEAL_TYPES.find((t) => t.key === meal.meal_type)?.label
 
   return (
     <div
@@ -56,7 +59,15 @@ export default function MealCard({
               </span>
             )}
             <span className="text-ink3"> · </span>
+            {location ? `${location.icon} ${location.label}` : null}
+            <span className="text-ink3"> · </span>
             {fmtDate(meal.prep_date)} → {fmtDate(meal.best_before)}
+            {meal.meal_type !== 'meal' && typeLabel ? (
+              <>
+                <span className="text-ink3"> · </span>
+                {typeLabel}
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

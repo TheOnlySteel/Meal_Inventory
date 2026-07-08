@@ -4,7 +4,8 @@ import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum, todayISO } from '../lib/format'
-import type { Meal, MealInsert } from '../lib/types'
+import type { Meal, MealInsert, MealType, StorageLocation } from '../lib/types'
+import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
 import { supabase } from '../lib/supabase'
@@ -19,6 +20,8 @@ export default function Manager() {
   const { toast } = useToast()
 
   const [filter, setFilter] = useState<Filter>('active')
+  const [locFilter, setLocFilter] = useState<'all' | StorageLocation>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | MealType>('all')
   const [sort, setSort] = useState<Sort>('urgency')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -32,7 +35,10 @@ export default function Manager() {
   const stats = useMemo(() => {
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
     const servings = active.reduce((s, m) => s + m.pack_quantity * Number(m.servings_per_pack), 0)
-    const urgent = active.filter((m) => freshnessOf(m).daysLeft <= 2).length
+    const urgent = active.filter((m) => {
+      const k = freshnessOf(m).key
+      return k === 'expired' || k === 'now'
+    }).length
     const kcal = active.reduce(
       (s, m) => s + (m.calories ?? 0) * Number(m.servings_per_pack) * m.pack_quantity,
       0,
@@ -56,8 +62,10 @@ export default function Manager() {
       filter === 'depleted'
         ? all.filter((m) => m.archived_at != null)
         : filter === 'soon'
-          ? active.filter((m) => freshnessOf(m).daysLeft <= 7)
+          ? active.filter((m) => freshnessOf(m).key !== 'fresh')
           : active
+    if (locFilter !== 'all') list = list.filter((m) => m.storage_location === locFilter)
+    if (typeFilter !== 'all') list = list.filter((m) => m.meal_type === typeFilter)
     const q = search.trim().toLowerCase()
     if (q) list = list.filter((m) => m.name.toLowerCase().includes(q))
     const sorted = [...list]
@@ -66,7 +74,7 @@ export default function Manager() {
     else if (sort === 'packs') sorted.sort((a, b) => b.pack_quantity - a.pack_quantity)
     // 'urgency' keeps the default best_before ordering from useMeals
     return sorted
-  }, [all, active, filter, search, sort])
+  }, [all, active, filter, locFilter, typeFilter, search, sort])
 
   function handleEat(meal: Meal) {
     eatPack.mutate(meal, {
@@ -188,6 +196,36 @@ export default function Manager() {
               <option value="newest">Newest</option>
               <option value="name">Name</option>
               <option value="packs">Most packs</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+              {(
+                [{ key: 'all' as const, label: 'All', icon: '' }, ...STORAGE_LOCATIONS]
+              ).map((l) => (
+                <button
+                  key={l.key}
+                  onClick={() => setLocFilter(l.key)}
+                  className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                    locFilter === l.key ? 'bg-tint text-white' : 'bg-card2 text-ink2'
+                  }`}
+                >
+                  {l.icon ? `${l.icon} ` : ''}
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as 'all' | MealType)}
+              className="shrink-0 rounded-lg bg-card2 px-2 py-1.5 text-[13px] font-semibold text-ink2 outline-none"
+            >
+              <option value="all">All types</option>
+              {MEAL_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

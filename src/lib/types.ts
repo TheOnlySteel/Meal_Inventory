@@ -1,8 +1,25 @@
+export type StorageLocation = 'freezer' | 'fridge' | 'shelf'
+export type MealType = 'meal' | 'component' | 'ingredient'
+
+export const STORAGE_LOCATIONS: { key: StorageLocation; label: string; icon: string }[] = [
+  { key: 'freezer', label: 'Freezer', icon: '❄️' },
+  { key: 'fridge', label: 'Fridge', icon: '🧊' },
+  { key: 'shelf', label: 'Shelf', icon: '🫙' },
+]
+
+export const MEAL_TYPES: { key: MealType; label: string }[] = [
+  { key: 'meal', label: 'Full meal' },
+  { key: 'component', label: 'Component' },
+  { key: 'ingredient', label: 'Ingredient' },
+]
+
 export interface Meal {
   id: string
   name: string
   prep_date: string
-  shelf_life_weeks: number
+  shelf_life_days: number
+  storage_location: StorageLocation
+  meal_type: MealType
   best_before: string
   servings_per_pack: number
   pack_quantity: number

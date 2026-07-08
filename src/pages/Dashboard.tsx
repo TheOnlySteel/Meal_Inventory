@@ -6,6 +6,7 @@ import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDateFull, fmtNum } from '../lib/format'
 import type { Meal } from '../lib/types'
+import { STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
 
@@ -61,7 +62,10 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
-    const urgent = active.filter((m) => freshnessOf(m).daysLeft <= 2).length
+    const urgent = active.filter((m) => {
+      const k = freshnessOf(m).key
+      return k === 'expired' || k === 'now'
+    }).length
     return { meals: active.length, packs, urgent }
   }, [active])
 
@@ -156,6 +160,11 @@ export default function Dashboard() {
                     style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.color }}
                   >
                     {fresh.label}
+                    <span className="text-ink3"> · </span>
+                    <span className="text-ink2">
+                      {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.icon}{' '}
+                      {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.label}
+                    </span>
                   </p>
                 </div>
                 <FreshnessRing freshness={fresh} size={52} />
