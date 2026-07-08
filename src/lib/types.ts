@@ -36,8 +36,16 @@ export interface MealLogEntry {
   id: string
   meal_id: string
   packs: number
+  caused_depletion: boolean
   logged_at: string
   user_id: string | null
+}
+
+/** Result of the eat_pack RPC. */
+export interface EatPackResult {
+  log_id: string
+  new_qty: number
+  depleted: boolean
 }
 
 export interface NutrientDef {

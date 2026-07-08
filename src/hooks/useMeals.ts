@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
-import type { Meal, MealInsert, MealLogEntry } from '../lib/types'
+import type { EatPackResult, Meal, MealInsert, MealLogEntry } from '../lib/types'
 import { urgencySort } from '../lib/freshness'
 
 const MEALS_KEY = ['meals']
@@ -93,57 +93,29 @@ export function useMealMutations() {
     onSettled: invalidate,
   })
 
-  /** Consume one pack: decrement, log, auto-archive at zero. Returns undo info. */
+  /** Consume one pack atomically (decrement + log + auto-archive in one transaction). */
   const eatPack = useMutation({
-    mutationFn: async (meal: Meal) => {
-      const newQty = Math.max(meal.pack_quantity - 1, 0)
-      const depleted = newQty === 0
-      const { error } = await supabase
-        .from('meals')
-        .update({
-          pack_quantity: newQty,
-          archived_at: depleted ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', meal.id)
+    mutationFn: async (meal: Meal): Promise<EatPackResult> => {
+      const { data, error } = await supabase.rpc('eat_pack', { p_meal_id: meal.id })
       if (error) throw error
-      const { data: log, error: logErr } = await supabase
-        .from('meal_log')
-        .insert({ meal_id: meal.id, packs: 1 })
-        .select()
-        .single()
-      if (logErr) throw logErr
-      return { logId: (log as MealLogEntry).id, newQty, depleted }
+      return data as EatPackResult
     },
     onMutate: async (meal) => {
       const newQty = Math.max(meal.pack_quantity - 1, 0)
       patchMealCache(qc, meal.id, {
         pack_quantity: newQty,
-        archived_at: newQty === 0 ? new Date().toISOString() : null,
+        archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
       })
     },
     onSettled: invalidate,
   })
 
-  /** Reverse an eatPack: restore quantity, unarchive, delete the log row. */
+  /** Reverse an eat_pack: restore quantity, unarchive if the eat archived it, drop the log row. */
   const undoEat = useMutation({
-    mutationFn: async ({ meal, logId }: { meal: Meal; logId: string }) => {
-      const { error } = await supabase
-        .from('meals')
-        .update({
-          pack_quantity: meal.pack_quantity,
-          archived_at: meal.archived_at,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', meal.id)
+    mutationFn: async (logId: string) => {
+      const { error } = await supabase.rpc('undo_eat', { p_log_id: logId })
       if (error) throw error
-      await supabase.from('meal_log').delete().eq('id', logId)
     },
-    onMutate: async ({ meal }) =>
-      patchMealCache(qc, meal.id, {
-        pack_quantity: meal.pack_quantity,
-        archived_at: meal.archived_at,
-      }),
     onSettled: invalidate,
   })
 

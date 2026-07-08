@@ -71,9 +71,9 @@ export default function Manager() {
 
   function handleEat(meal: Meal) {
     eatPack.mutate(meal, {
-      onSuccess: ({ logId, depleted }) => {
+      onSuccess: ({ log_id, depleted }) => {
         toast(depleted ? `Last pack of ${meal.name} — moved to history` : `Ate 1 · ${meal.name}`, {
-          undo: () => undoEat.mutate({ meal, logId }),
+          undo: () => undoEat.mutate(log_id),
         })
       },
       onError: () => toast('Could not update — check connection', { tone: 'error' }),
