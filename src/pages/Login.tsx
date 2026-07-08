@@ -10,7 +10,9 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
 
   if (!loading && session) {
     const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -21,8 +23,15 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+    setNotice(null)
+    if (mode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message)
+    } else {
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) setError(error.message)
+      else if (!data.session) setNotice('Check your email to confirm your account, then sign in.')
+    }
     setBusy(false)
   }
 
@@ -69,7 +78,7 @@ export default function Login() {
           <span className="text-[13px] font-medium text-ink2">Password</span>
           <input
             type="password"
-            autoComplete="current-password"
+            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -83,13 +92,36 @@ export default function Login() {
             {error}
           </p>
         )}
+        {notice && (
+          <p className="fade-in text-center text-[13px] font-medium" style={{ color: 'var(--green)' }}>
+            {notice}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={busy}
           className="pressable mt-2 rounded-xl bg-tint py-3.5 text-[16px] font-semibold text-white disabled:opacity-50"
         >
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy
+            ? mode === 'signin'
+              ? 'Signing in…'
+              : 'Creating account…'
+            : mode === 'signin'
+              ? 'Sign in'
+              : 'Create account'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode((m) => (m === 'signin' ? 'signup' : 'signin'))
+            setError(null)
+            setNotice(null)
+          }}
+          className="pressable self-center text-[13px] font-semibold text-tint"
+        >
+          {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
         </button>
       </form>
     </div>

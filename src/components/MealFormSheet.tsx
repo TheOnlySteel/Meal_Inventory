@@ -1,9 +1,26 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
-import type { Meal, MealInsert, NutrientDef } from '../lib/types'
-import { CORE_NUTRIENTS, EXTENDED_NUTRIENTS } from '../lib/types'
+import type { Meal, MealInsert, MealType, NutrientDef, StorageLocation } from '../lib/types'
+import { CORE_NUTRIENTS, EXTENDED_NUTRIENTS, MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { fmtDateFull, todayISO } from '../lib/format'
+
+/** Freezer shelf life reads naturally in weeks; fridge/shelf in days. */
+const usesWeeks = (loc: StorageLocation) => loc === 'freezer'
+
+const DEFAULT_LIFE: Record<StorageLocation, string> = { freezer: '12', fridge: '4', shelf: '7' }
+
+function lifeFromDays(days: number, loc: StorageLocation): string {
+  if (!usesWeeks(loc)) return String(days)
+  const weeks = days / 7
+  return Number.isInteger(weeks) ? String(weeks) : weeks.toFixed(1)
+}
+
+function daysFromLife(life: string, loc: StorageLocation): number {
+  const n = parseFloat(life)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.max(Math.round(usesWeeks(loc) ? n * 7 : n), 1)
+}
 
 interface Props {
   /** Existing meal → edit mode; template (from re-prep/autocomplete) prefills a new meal. */
@@ -31,7 +48,12 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
   const base = editing ?? template ?? null
   const [name, setName] = useState(base?.name ?? '')
   const [prepDate, setPrepDate] = useState(editing?.prep_date ?? todayISO())
-  const [shelfWeeks, setShelfWeeks] = useState(String(base?.shelf_life_weeks ?? 12))
+  const [location, setLocation] = useState<StorageLocation>(base?.storage_location ?? 'freezer')
+  const [mealType, setMealType] = useState<MealType>(base?.meal_type ?? 'meal')
+  const [shelfLife, setShelfLife] = useState(() =>
+    base ? lifeFromDays(base.shelf_life_days, base.storage_location) : DEFAULT_LIFE.freezer,
+  )
+  const [lifeTouched, setLifeTouched] = useState(base != null)
   const [servings, setServings] = useState(String(base?.servings_per_pack ?? 1))
   const [packs, setPacks] = useState(String(editing?.pack_quantity ?? base?.initial_pack_quantity ?? 4))
   const [notes, setNotes] = useState(base?.notes ?? '')
@@ -41,11 +63,22 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
   )
   const [showSuggestions, setShowSuggestions] = useState(false)
 
+  const shelfDays = daysFromLife(shelfLife, location)
+
   const bestBefore = useMemo(() => {
-    const weeks = parseFloat(shelfWeeks)
-    if (!prepDate || !weeks || weeks <= 0) return null
-    return addDays(parseISO(prepDate), Math.round(weeks * 7))
-  }, [prepDate, shelfWeeks])
+    if (!prepDate || shelfDays <= 0) return null
+    return addDays(parseISO(prepDate), shelfDays)
+  }, [prepDate, shelfDays])
+
+  function switchLocation(next: StorageLocation) {
+    if (next === location) return
+    if (!lifeTouched) {
+      setShelfLife(DEFAULT_LIFE[next])
+    } else if (usesWeeks(location) !== usesWeeks(next) && shelfDays > 0) {
+      setShelfLife(lifeFromDays(shelfDays, next))
+    }
+    setLocation(next)
+  }
 
   // Autocomplete: latest meal per distinct name matching the query
   const suggestions = useMemo(() => {
@@ -66,7 +99,10 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
 
   function applyTemplate(m: Meal) {
     setName(m.name)
-    setShelfWeeks(String(m.shelf_life_weeks))
+    setLocation(m.storage_location)
+    setMealType(m.meal_type)
+    setShelfLife(lifeFromDays(m.shelf_life_days, m.storage_location))
+    setLifeTouched(true)
     setServings(String(m.servings_per_pack))
     setPacks(String(m.initial_pack_quantity))
     setNotes(m.notes ?? '')
@@ -92,7 +128,9 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
     const values: MealInsert = {
       name: name.trim(),
       prep_date: prepDate,
-      shelf_life_weeks: parseFloat(shelfWeeks) || 1,
+      shelf_life_days: shelfDays || 1,
+      storage_location: location,
+      meal_type: mealType,
       servings_per_pack: parseFloat(servings) || 1,
       pack_quantity: packQty,
       initial_pack_quantity: editing
@@ -175,6 +213,42 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
             )}
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <span className={labelCls}>Storage</span>
+            <div className="flex rounded-xl bg-card2 p-0.5">
+              {STORAGE_LOCATIONS.map((l) => (
+                <button
+                  key={l.key}
+                  type="button"
+                  onClick={() => switchLocation(l.key)}
+                  className={`pressable flex-1 rounded-lg py-2 text-[14px] font-semibold transition-colors ${
+                    location === l.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
+                  }`}
+                >
+                  {l.icon} {l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className={labelCls}>Type</span>
+            <div className="flex rounded-xl bg-card2 p-0.5">
+              {MEAL_TYPES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setMealType(t.key)}
+                  className={`pressable flex-1 rounded-lg py-2 text-[14px] font-semibold transition-colors ${
+                    mealType === t.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
               <span className={labelCls}>Prep date</span>
@@ -187,16 +261,21 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className={labelCls}>Shelf life (weeks)</span>
+              <span className={labelCls}>
+                Shelf life ({usesWeeks(location) ? 'weeks' : 'days'})
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
-                step="0.5"
-                min="0.5"
+                step={usesWeeks(location) ? '0.5' : '1'}
+                min={usesWeeks(location) ? '0.5' : '1'}
                 className={inputCls}
-                value={shelfWeeks}
+                value={shelfLife}
                 required
-                onChange={(e) => setShelfWeeks(e.target.value)}
+                onChange={(e) => {
+                  setShelfLife(e.target.value)
+                  setLifeTouched(true)
+                }}
               />
             </label>
           </div>

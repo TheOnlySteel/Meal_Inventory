@@ -1,8 +1,25 @@
+export type StorageLocation = 'freezer' | 'fridge' | 'shelf'
+export type MealType = 'meal' | 'component' | 'ingredient'
+
+export const STORAGE_LOCATIONS: { key: StorageLocation; label: string; icon: string }[] = [
+  { key: 'freezer', label: 'Freezer', icon: '❄️' },
+  { key: 'fridge', label: 'Fridge', icon: '🧊' },
+  { key: 'shelf', label: 'Shelf', icon: '🫙' },
+]
+
+export const MEAL_TYPES: { key: MealType; label: string }[] = [
+  { key: 'meal', label: 'Full meal' },
+  { key: 'component', label: 'Component' },
+  { key: 'ingredient', label: 'Ingredient' },
+]
+
 export interface Meal {
   id: string
   name: string
   prep_date: string
-  shelf_life_weeks: number
+  shelf_life_days: number
+  storage_location: StorageLocation
+  meal_type: MealType
   best_before: string
   servings_per_pack: number
   pack_quantity: number
@@ -22,22 +39,85 @@ export interface Meal {
   vit_c_mg: number | null
   vit_d_ug: number | null
   archived_at: string | null
+  household_id: string
   created_by: string | null
   created_at: string
   updated_at: string
 }
 
+/** household_id is filled server-side by a trigger from the user's membership. */
 export type MealInsert = Omit<
   Meal,
-  'id' | 'best_before' | 'archived_at' | 'created_by' | 'created_at' | 'updated_at'
+  'id' | 'best_before' | 'archived_at' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
 >
 
 export interface MealLogEntry {
   id: string
   meal_id: string
   packs: number
+  caused_depletion: boolean
+  household_id: string
   logged_at: string
   user_id: string | null
+}
+
+export interface Household {
+  id: string
+  name: string
+  invite_code: string
+}
+
+export type PlanSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+export const PLAN_SLOTS: { key: PlanSlot; label: string; icon: string }[] = [
+  { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
+  { key: 'lunch', label: 'Lunch', icon: '☀️' },
+  { key: 'dinner', label: 'Dinner', icon: '🌙' },
+  { key: 'snack', label: 'Snack', icon: '🍎' },
+]
+
+export interface PlanEntry {
+  id: string
+  household_id: string
+  plan_date: string
+  slot: PlanSlot
+  meal_id: string | null
+  title: string | null
+  servings: number
+  notes: string | null
+  completed_at: string | null
+  log_id: string | null
+  created_by: string | null
+  created_at: string
+  /** joined inventory meal when meal_id is set */
+  meals: Meal | null
+}
+
+export type PlanEntryInsert = {
+  plan_date: string
+  slot: PlanSlot
+  meal_id?: string
+  title?: string
+  servings?: number
+  notes?: string | null
+}
+
+export interface ShoppingItem {
+  id: string
+  household_id: string
+  name: string
+  quantity: string | null
+  checked_at: string | null
+  sort_order: number
+  created_by: string | null
+  created_at: string
+}
+
+/** Result of the eat_pack RPC. */
+export interface EatPackResult {
+  log_id: string
+  new_qty: number
+  depleted: boolean
 }
 
 export interface NutrientDef {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
-import { useMeals, useMealMutations, useRealtimeMeals } from '../hooks/useMeals'
+import { useMeals, useMealMutations, useRealtimeSync } from '../hooks/useMeals'
+import { usePlan, usePlanMutations } from '../hooks/usePlanner'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDateFull, fmtNum } from '../lib/format'
-import type { Meal } from '../lib/types'
+import type { Meal, PlanEntry } from '../lib/types'
+import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
 
@@ -45,11 +47,13 @@ function useWakeLock() {
 }
 
 export default function Dashboard() {
-  useRealtimeMeals()
+  useRealtimeSync()
   useWakeLock()
   const now = useClock()
   const { data: meals, isLoading } = useMeals()
+  const { data: plan } = usePlan()
   const { eatPack, undoEat } = useMealMutations()
+  const { completeEntry, uncompleteEntry } = usePlanMutations()
   const { toast } = useToast()
   const [detail, setDetail] = useState<Meal | null>(null)
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -61,7 +65,10 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
-    const urgent = active.filter((m) => freshnessOf(m).daysLeft <= 2).length
+    const urgent = active.filter((m) => {
+      const k = freshnessOf(m).key
+      return k === 'expired' || k === 'now'
+    }).length
     return { meals: active.length, packs, urgent }
   }, [active])
 
@@ -77,12 +84,36 @@ export default function Dashboard() {
   // Keep the detail overlay in sync with live data
   const liveDetail = detail ? (active.find((m) => m.id === detail.id) ?? null) : null
 
+  const todayPlan = useMemo(() => {
+    const iso = format(now, 'yyyy-MM-dd')
+    const order = new Map(PLAN_SLOTS.map((s, i) => [s.key, i]))
+    return (plan ?? [])
+      .filter((e) => e.plan_date === iso)
+      .sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0))
+  }, [plan, now])
+
+  function tickPlan(entry: PlanEntry) {
+    if (entry.completed_at != null) {
+      uncompleteEntry.mutate(entry.id)
+      return
+    }
+    completeEntry.mutate(entry, {
+      onSuccess: () => {
+        const name = entry.meals?.name ?? entry.title ?? 'entry'
+        toast(entry.meal_id ? `Ate 1 · ${name}` : `Done · ${name}`, {
+          undo: () => uncompleteEntry.mutate(entry.id),
+        })
+      },
+      onError: () => toast('Could not update', { tone: 'error' }),
+    })
+  }
+
   function tickOff(meal: Meal, e: React.MouseEvent) {
     e.stopPropagation()
     eatPack.mutate(meal, {
-      onSuccess: ({ logId, depleted }) => {
+      onSuccess: ({ log_id, depleted }) => {
         toast(depleted ? `Last pack of ${meal.name}` : `Ate 1 · ${meal.name}`, {
-          undo: () => undoEat.mutate({ meal, logId }),
+          undo: () => undoEat.mutate(log_id),
         })
       },
       onError: () => toast('Could not update', { tone: 'error' }),
@@ -127,6 +158,53 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Today's plan strip */}
+      {todayPlan.length > 0 && (
+        <div className="no-scrollbar flex shrink-0 gap-3 overflow-x-auto px-8 pb-4">
+          {todayPlan.map((entry) => {
+            const done = entry.completed_at != null
+            const slotDef = PLAN_SLOTS.find((s) => s.key === entry.slot)
+            return (
+              <div
+                key={entry.id}
+                className={`pop-in flex shrink-0 items-center gap-3 rounded-2xl bg-card py-2.5 pr-2.5 pl-4 card-shadow ${
+                  done ? 'opacity-55' : ''
+                }`}
+              >
+                <div>
+                  <p className="text-[11px] font-semibold tracking-wide text-ink2 uppercase">
+                    {slotDef?.icon} {slotDef?.label}
+                  </p>
+                  <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
+                    {entry.meals?.name ?? entry.title}
+                  </p>
+                </div>
+                <button
+                  onClick={() => tickPlan(entry)}
+                  aria-label={done ? 'Mark not done' : 'Mark done'}
+                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  style={{
+                    background: done ? 'var(--green)' : 'var(--card-2)',
+                    color: done ? 'white' : 'var(--ink-2)',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path
+                      d="M5 12.5 10 17.5 19 7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Grid */}
       <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 xl:grid-cols-4">
         {isLoading &&
@@ -156,6 +234,11 @@ export default function Dashboard() {
                     style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.color }}
                   >
                     {fresh.label}
+                    <span className="text-ink3"> · </span>
+                    <span className="text-ink2">
+                      {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.icon}{' '}
+                      {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.label}
+                    </span>
                   </p>
                 </div>
                 <FreshnessRing freshness={fresh} size={52} />

@@ -1,31 +1,34 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMeals, useMealMutations, useRealtimeMeals, useTodayLog } from '../hooks/useMeals'
+import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum, todayISO } from '../lib/format'
-import type { Meal, MealInsert } from '../lib/types'
+import type { Meal, MealInsert, MealType, StorageLocation } from '../lib/types'
+import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
-import { supabase } from '../lib/supabase'
+import HouseholdSheet from '../components/HouseholdSheet'
 
 type Filter = 'active' | 'soon' | 'depleted'
 type Sort = 'urgency' | 'newest' | 'name' | 'packs'
 
 export default function Manager() {
-  useRealtimeMeals()
   const { data: meals, isLoading, error } = useMeals()
   const { data: todayLog } = useTodayLog()
   const { addMeal, updateMeal, eatPack, undoEat, archiveMeal, deleteMeal } = useMealMutations()
   const { toast } = useToast()
 
   const [filter, setFilter] = useState<Filter>('active')
+  const [locFilter, setLocFilter] = useState<'all' | StorageLocation>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | MealType>('all')
   const [sort, setSort] = useState<Sort>('urgency')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Meal | null>(null)
   const [template, setTemplate] = useState<Meal | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const all = useMemo(() => meals ?? [], [meals])
   const active = useMemo(() => all.filter((m) => m.archived_at == null), [all])
@@ -33,7 +36,10 @@ export default function Manager() {
   const stats = useMemo(() => {
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
     const servings = active.reduce((s, m) => s + m.pack_quantity * Number(m.servings_per_pack), 0)
-    const urgent = active.filter((m) => freshnessOf(m).daysLeft <= 2).length
+    const urgent = active.filter((m) => {
+      const k = freshnessOf(m).key
+      return k === 'expired' || k === 'now'
+    }).length
     const kcal = active.reduce(
       (s, m) => s + (m.calories ?? 0) * Number(m.servings_per_pack) * m.pack_quantity,
       0,
@@ -57,8 +63,10 @@ export default function Manager() {
       filter === 'depleted'
         ? all.filter((m) => m.archived_at != null)
         : filter === 'soon'
-          ? active.filter((m) => freshnessOf(m).daysLeft <= 7)
+          ? active.filter((m) => freshnessOf(m).key !== 'fresh')
           : active
+    if (locFilter !== 'all') list = list.filter((m) => m.storage_location === locFilter)
+    if (typeFilter !== 'all') list = list.filter((m) => m.meal_type === typeFilter)
     const q = search.trim().toLowerCase()
     if (q) list = list.filter((m) => m.name.toLowerCase().includes(q))
     const sorted = [...list]
@@ -67,13 +75,13 @@ export default function Manager() {
     else if (sort === 'packs') sorted.sort((a, b) => b.pack_quantity - a.pack_quantity)
     // 'urgency' keeps the default best_before ordering from useMeals
     return sorted
-  }, [all, active, filter, search, sort])
+  }, [all, active, filter, locFilter, typeFilter, search, sort])
 
   function handleEat(meal: Meal) {
     eatPack.mutate(meal, {
-      onSuccess: ({ logId, depleted }) => {
+      onSuccess: ({ log_id, depleted }) => {
         toast(depleted ? `Last pack of ${meal.name} — moved to history` : `Ate 1 · ${meal.name}`, {
-          undo: () => undoEat.mutate({ meal, logId }),
+          undo: () => undoEat.mutate(log_id),
         })
       },
       onError: () => toast('Could not update — check connection', { tone: 'error' }),
@@ -121,10 +129,14 @@ export default function Manager() {
               Kiosk
             </Link>
             <button
-              onClick={() => supabase.auth.signOut()}
-              className="pressable text-[13px] font-semibold text-ink2"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Household settings"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
             >
-              Sign out
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 19.5c1.3-3 4-4.5 7-4.5s5.7 1.5 7 4.5" />
+              </svg>
             </button>
           </div>
         </div>
@@ -191,6 +203,36 @@ export default function Manager() {
               <option value="packs">Most packs</option>
             </select>
           </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+              {(
+                [{ key: 'all' as const, label: 'All', icon: '' }, ...STORAGE_LOCATIONS]
+              ).map((l) => (
+                <button
+                  key={l.key}
+                  onClick={() => setLocFilter(l.key)}
+                  className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                    locFilter === l.key ? 'bg-tint text-white' : 'bg-card2 text-ink2'
+                  }`}
+                >
+                  {l.icon ? `${l.icon} ` : ''}
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as 'all' | MealType)}
+              className="shrink-0 rounded-lg bg-card2 px-2 py-1.5 text-[13px] font-semibold text-ink2 outline-none"
+            >
+              <option value="all">All types</option>
+              {MEAL_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 
@@ -217,7 +259,7 @@ export default function Manager() {
       )}
 
       {/* Meal list */}
-      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-28">
+      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-40">
         {isLoading &&
           [1, 2, 3].map((i) => <div key={i} className="skeleton h-24 w-full" />)}
 
@@ -284,7 +326,7 @@ export default function Manager() {
           setFormOpen(true)
         }}
         aria-label="New meal"
-        className="pressable fixed right-5 bottom-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow safe-b"
+        className="pressable fixed right-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow"
       >
         <svg width="24" height="24" viewBox="0 0 24 24">
           <path
@@ -295,6 +337,8 @@ export default function Manager() {
           />
         </svg>
       </button>
+
+      {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
 
       {formOpen && (
         <MealFormSheet

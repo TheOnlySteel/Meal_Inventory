@@ -1,9 +1,13 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { HouseholdGate, HouseholdProvider } from './hooks/useHousehold'
+import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import Manager from './pages/Manager'
 import Dashboard from './pages/Dashboard'
+import Planner from './pages/Planner'
+import Shopping from './pages/Shopping'
 
 function Protected({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
@@ -16,7 +20,11 @@ function Protected({ children }: { children: ReactNode }) {
     )
   }
   if (!session) return <Navigate to="/login" state={{ from: location.pathname }} replace />
-  return <>{children}</>
+  return (
+    <HouseholdProvider>
+      <HouseholdGate>{children}</HouseholdGate>
+    </HouseholdProvider>
+  )
 }
 
 export default function App() {
@@ -24,13 +32,16 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
-        path="/"
         element={
           <Protected>
-            <Manager />
+            <AppLayout />
           </Protected>
         }
-      />
+      >
+        <Route path="/" element={<Manager />} />
+        <Route path="/planner" element={<Planner />} />
+        <Route path="/shopping" element={<Shopping />} />
+      </Route>
       <Route
         path="/dashboard"
         element={
