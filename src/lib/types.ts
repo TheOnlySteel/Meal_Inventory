@@ -67,6 +67,41 @@ export interface Household {
   invite_code: string
 }
 
+export type PlanSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+export const PLAN_SLOTS: { key: PlanSlot; label: string; icon: string }[] = [
+  { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
+  { key: 'lunch', label: 'Lunch', icon: '☀️' },
+  { key: 'dinner', label: 'Dinner', icon: '🌙' },
+  { key: 'snack', label: 'Snack', icon: '🍎' },
+]
+
+export interface PlanEntry {
+  id: string
+  household_id: string
+  plan_date: string
+  slot: PlanSlot
+  meal_id: string | null
+  title: string | null
+  servings: number
+  notes: string | null
+  completed_at: string | null
+  log_id: string | null
+  created_by: string | null
+  created_at: string
+  /** joined inventory meal when meal_id is set */
+  meals: Meal | null
+}
+
+export type PlanEntryInsert = {
+  plan_date: string
+  slot: PlanSlot
+  meal_id?: string
+  title?: string
+  servings?: number
+  notes?: string | null
+}
+
 export interface ShoppingItem {
   id: string
   household_id: string
