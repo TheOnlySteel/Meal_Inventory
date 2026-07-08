@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f2f2f7;
+  --bg-elevated: #ffffff;
+  --card: #ffffff;
+  --card-2: rgba(120, 120, 128, 0.08);
+  --ink: #1d1d1f;
+  --ink-2: rgba(60, 60, 67, 0.6);
+  --ink-3: rgba(60, 60, 67, 0.33);
+  --sep: rgba(60, 60, 67, 0.12);
+  --tint: #007aff;
+  --green: #34c759;
+  --amber: #e6b800;
+  --orange: #ff9500;
+  --red: #ff3b30;
+  --glass: rgba(255, 255, 255, 0.72);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.12), 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --bg-elevated: #1c1c1e;
+    --card: #1c1c1e;
+    --card-2: rgba(120, 120, 128, 0.18);
+    --ink: #f5f5f7;
+    --ink-2: rgba(235, 235, 245, 0.6);
+    --ink-3: rgba(235, 235, 245, 0.3);
+    --sep: rgba(84, 84, 88, 0.5);
+    --tint: #0a84ff;
+    --green: #30d158;
+    --amber: #ffd60a;
+    --orange: #ff9f0a;
+    --red: #ff453a;
+    --glass: rgba(28, 28, 30, 0.72);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-canvas: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-card: var(--card);
+  --color-card2: var(--card-2);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink-2);
+  --color-ink3: var(--ink-3);
+  --color-sep: var(--sep);
+  --color-tint: var(--tint);
+  --color-fresh: var(--green);
+  --color-soon: var(--amber);
+  --color-now: var(--orange);
+  --color-expired: var(--red);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum";
+  overscroll-behavior-y: none;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+/* prevent iOS zoom-on-focus */
+input, select, textarea {
+  font-size: 16px;
+}
+
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.card-shadow { box-shadow: var(--shadow-card); }
+.float-shadow { box-shadow: var(--shadow-float); }
+
+.pressable {
+  transition: transform 0.15s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.15s ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheet-up { animation: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in { animation: fade-in 0.25s ease; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in { animation: pop-in 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+
+@keyframes toast-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-up { animation: toast-up 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+.skeleton {
+  background: var(--card-2);
+  border-radius: 12px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.breathe { animation: breathe 3s ease-in-out infinite; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.safe-b { padding-bottom: env(safe-area-inset-bottom); }
+.safe-t { padding-top: env(safe-area-inset-top); }
+
+/* number inputs without spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }

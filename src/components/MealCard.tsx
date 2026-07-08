@@ -1,0 +1,140 @@
+import type { Meal } from '../lib/types'
+import { freshnessOf } from '../lib/freshness'
+import { fmtDate, fmtNum } from '../lib/format'
+import FreshnessRing from './FreshnessRing'
+import MacroGrid from './MacroGrid'
+
+interface Props {
+  meal: Meal
+  expanded: boolean
+  onToggle: () => void
+  onEat: () => void
+  onEdit: () => void
+  onReprep: () => void
+  onArchive: () => void
+  onRestore?: () => void
+  onDelete?: () => void
+}
+
+/** Expandable meal card: summary row → tap → macro layer + actions. */
+export default function MealCard({
+  meal,
+  expanded,
+  onToggle,
+  onEat,
+  onEdit,
+  onReprep,
+  onArchive,
+  onRestore,
+  onDelete,
+}: Props) {
+  const fresh = freshnessOf(meal)
+  const depleted = meal.archived_at != null
+  const packsPct =
+    meal.initial_pack_quantity > 0 ? meal.pack_quantity / meal.initial_pack_quantity : 0
+
+  return (
+    <div
+      onClick={onToggle}
+      className={`pop-in cursor-pointer rounded-2xl bg-card card-shadow transition-all ${
+        depleted ? 'opacity-60' : ''
+      }`}
+      style={{ borderLeft: `4px solid ${depleted ? 'var(--ink-3)' : fresh.color}` }}
+    >
+      <div className="flex items-center gap-3 p-4">
+        <FreshnessRing freshness={fresh} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <h3 className="truncate text-[17px] leading-tight font-semibold">{meal.name}</h3>
+          </div>
+          <p className="mt-0.5 text-[13px] text-ink2">
+            {depleted ? (
+              'Depleted'
+            ) : (
+              <span style={{ color: fresh.key !== 'fresh' ? fresh.color : undefined }}>
+                {fresh.label}
+              </span>
+            )}
+            <span className="text-ink3"> · </span>
+            {fmtDate(meal.prep_date)} → {fmtDate(meal.best_before)}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className="rounded-full bg-card2 px-2.5 py-1 text-[13px] font-semibold tabular-nums">
+            {meal.pack_quantity}
+            <span className="font-normal text-ink2"> / {meal.initial_pack_quantity}</span>
+          </span>
+          <span className="text-[11px] text-ink2">
+            {fmtNum(meal.servings_per_pack)} serv/pack
+          </span>
+        </div>
+      </div>
+
+      {/* pack progress hairline */}
+      <div className="mx-4 h-[3px] overflow-hidden rounded-full bg-card2">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${Math.max(packsPct * 100, 2)}%`,
+            background: depleted ? 'var(--ink-3)' : fresh.color,
+          }}
+        />
+      </div>
+
+      {expanded && (
+        <div className="fade-in flex flex-col gap-4 p-4" onClick={(e) => e.stopPropagation()}>
+          <MacroGrid meal={meal} />
+          {meal.notes && <p className="text-[13px] whitespace-pre-wrap text-ink2">{meal.notes}</p>}
+          <div className="flex flex-wrap gap-2">
+            {!depleted && (
+              <button
+                onClick={onEat}
+                className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"
+              >
+                Eat one
+              </button>
+            )}
+            {depleted && onRestore && (
+              <button
+                onClick={onRestore}
+                className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"
+              >
+                Restore
+              </button>
+            )}
+            <button
+              onClick={onReprep}
+              className="pressable flex-1 rounded-xl bg-card2 py-2.5 text-[15px] font-semibold text-tint"
+            >
+              Re-prep
+            </button>
+            <button
+              onClick={onEdit}
+              className="pressable flex-1 rounded-xl bg-card2 py-2.5 text-[15px] font-semibold"
+            >
+              Edit
+            </button>
+            {!depleted ? (
+              <button
+                onClick={onArchive}
+                className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[15px] font-semibold text-ink2"
+              >
+                Archive
+              </button>
+            ) : (
+              onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[15px] font-semibold"
+                  style={{ color: 'var(--red)' }}
+                >
+                  Delete
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
