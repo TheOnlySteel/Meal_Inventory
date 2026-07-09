@@ -134,7 +134,7 @@ export default function Recipes() {
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-28">
-        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-20 w-full" />)}
+        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-[72px] w-full" />)}
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>

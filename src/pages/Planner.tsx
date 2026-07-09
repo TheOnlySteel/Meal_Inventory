@@ -123,11 +123,15 @@ export default function Planner() {
           </button>
         </div>
         {/* Day strip */}
-        <div ref={stripRef} className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pt-1 pb-3">
+        <div
+          ref={stripRef}
+          className="no-scrollbar flex snap-x snap-proximity scroll-pl-4 gap-1.5 overflow-x-auto px-4 pt-1 pb-3"
+        >
           {days.map((day) => {
             const iso = format(day, 'yyyy-MM-dd')
             const active = isSameDay(day, selected)
             const today = isToday(day)
+            const past = iso < todayIso
             const dayList = byDay.get(iso) ?? []
             const hasOpen = dayList.some((e) => e.completed_at == null)
             const hasAny = dayList.length > 0
@@ -136,18 +140,22 @@ export default function Planner() {
                 key={iso}
                 data-today={today}
                 onClick={() => setSelected(day)}
-                className={`pressable flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors ${
+                className={`pressable flex w-12 shrink-0 snap-start flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors ${
                   active ? 'bg-tint text-white' : 'bg-card2 text-ink'
                 }`}
               >
                 <span
                   className={`text-[10px] font-semibold uppercase ${
-                    active ? 'text-white/80' : today ? 'text-tint' : 'text-ink2'
+                    active ? 'text-white/80' : today ? 'text-tint' : past ? 'text-ink3' : 'text-ink2'
                   }`}
                 >
                   {today ? 'Today' : format(day, 'EEE')}
                 </span>
-                <span className="text-[17px] leading-none font-bold tabular-nums">
+                <span
+                  className={`text-[17px] leading-none font-bold tabular-nums ${
+                    past && !active ? 'text-ink3' : ''
+                  }`}
+                >
                   {format(day, 'd')}
                 </span>
                 <span
@@ -171,7 +179,7 @@ export default function Planner() {
       </header>
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-28">
-        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-20 w-full" />)}
+        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-16 w-full" />)}
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>

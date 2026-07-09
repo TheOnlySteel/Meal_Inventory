@@ -283,9 +283,9 @@ export default function Dashboard() {
       )}
 
       {/* Grid */}
-      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 xl:grid-cols-4">
+      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 lg:grid-cols-4">
         {isLoading &&
-          [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-36" />)}
+          [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-40" />)}
 
         {!isLoading && active.length === 0 && (
           <div className="col-span-full flex flex-col items-center gap-3 py-24">
