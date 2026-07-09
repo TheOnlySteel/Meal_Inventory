@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import type { ShoppingItem } from '../lib/types'
 import { pressableProps } from '../lib/a11y'
 import Icon from '../components/Icon'
+import AddItemsSheet from '../components/AddItemsSheet'
 
 export default function Shopping() {
   const { data: items, isLoading, error } = useShopping()
-  const { addItem, setChecked, clearChecked, restoreItems, deleteItem } = useShoppingMutations()
+  const { setChecked, clearChecked, restoreItems, deleteItem } = useShoppingMutations()
   const { toast } = useToast()
-  const [draft, setDraft] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
 
   const { open, done } = useMemo(() => {
     const all = items ?? []
@@ -19,16 +19,6 @@ export default function Shopping() {
       done: all.filter((i) => i.checked_at != null),
     }
   }, [items])
-
-  function onAdd(e: FormEvent) {
-    e.preventDefault()
-    const name = draft.trim()
-    if (!name) return
-    setDraft('')
-    addItem.mutate(name, {
-      onError: () => toast('Could not add item', { tone: 'error' }),
-    })
-  }
 
   function onClearChecked() {
     const cleared = [...done]
@@ -45,29 +35,9 @@ export default function Shopping() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-canvas">
       <header className="glass sticky top-0 z-30 safe-t">
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-4 pt-3 pb-3">
           <h1 className="text-[28px] font-bold tracking-tight">Shopping</h1>
         </div>
-        <form onSubmit={onAdd} className="flex gap-2 px-4 pb-3">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Add an item…"
-            enterKeyHint="done"
-            className="w-full rounded-xl bg-card2 px-4 py-2 text-[16px] outline-none placeholder:text-ink3 focus:ring-2 focus:ring-tint/50"
-          />
-          <button
-            type="submit"
-            disabled={!draft.trim()}
-            aria-label="Add item"
-            className="pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tint text-white disabled:opacity-40"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </button>
-        </form>
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-[calc(var(--bottom-clearance)+4.5rem)]">
@@ -84,7 +54,7 @@ export default function Shopping() {
             <Icon name="cart" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">Nothing to buy</p>
             <p className="max-w-60 text-[14px] text-ink2">
-              Add items above, or send “to make” meals here from the planner.
+              Tap + to add items, or send “to make” meals here from the planner.
             </p>
           </div>
         )}
@@ -118,6 +88,19 @@ export default function Shopping() {
           </>
         )}
       </main>
+
+      {/* FAB — consistent with the other tabs */}
+      <button
+        onClick={() => setAddOpen(true)}
+        aria-label="Add items"
+        className="pressable fixed right-5 bottom-[var(--bottom-clearance)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {addOpen && <AddItemsSheet onClose={() => setAddOpen(false)} />}
     </div>
   )
 }
