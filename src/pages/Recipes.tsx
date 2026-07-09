@@ -11,6 +11,7 @@ import RecipeDetailSheet from '../components/RecipeDetailSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
 import MealFormSheet from '../components/MealFormSheet'
 import Icon from '../components/Icon'
+import ConfirmSheet from '../components/ConfirmSheet'
 
 /** Meal-shaped template so MealFormSheet opens prefilled from a recipe. */
 function mealTemplateFromRecipe(r: Recipe, loc: StorageLocation): Meal {
@@ -64,6 +65,7 @@ export default function Recipes() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Recipe | null>(null)
   const [larderTemplate, setLarderTemplate] = useState<Meal | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Recipe | null>(null)
 
   const visible = useMemo(() => {
     const all = recipes ?? []
@@ -215,12 +217,7 @@ export default function Recipes() {
             setEditing(detail)
             setFormOpen(true)
           }}
-          onDelete={() => {
-            if (confirm(`Delete “${detail.name}”? Meals made from it stay in the larder.`)) {
-              setDetailId(null)
-              deleteRecipe.mutate(detail.id)
-            }
-          }}
+          onDelete={() => setConfirmDelete(detail)}
           onSendToLarder={(loc) => handleSendToLarder(detail, loc)}
           onIngredientsToShopping={() => handleIngredientsToShopping(detail)}
         />
@@ -234,6 +231,19 @@ export default function Recipes() {
             setEditing(null)
           }}
           onSave={handleSaveRecipe}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title={`Delete “${confirmDelete.name}”?`}
+          message="Meals made from it stay in the larder."
+          confirmLabel="Delete Recipe"
+          onConfirm={() => {
+            setDetailId(null)
+            deleteRecipe.mutate(confirmDelete.id)
+          }}
+          onClose={() => setConfirmDelete(null)}
         />
       )}
 

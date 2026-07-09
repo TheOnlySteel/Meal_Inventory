@@ -77,6 +77,8 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   font-feature-settings: "tnum";
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
 }
 

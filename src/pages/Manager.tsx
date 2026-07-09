@@ -11,6 +11,7 @@ import MealFormSheet from '../components/MealFormSheet'
 import HouseholdSheet from '../components/HouseholdSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
 import Icon from '../components/Icon'
+import ConfirmSheet from '../components/ConfirmSheet'
 import { useRecipeMutations } from '../hooks/useRecipes'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
@@ -33,6 +34,7 @@ export default function Manager() {
   const [editing, setEditing] = useState<Meal | null>(null)
   const [template, setTemplate] = useState<Meal | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Meal | null>(null)
   const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
   const { addRecipe } = useRecipeMutations()
 
@@ -355,11 +357,7 @@ export default function Manager() {
               })
             }}
             onRestore={() => archiveMeal.mutate({ id: meal.id, archived: false })}
-            onDelete={() => {
-              if (confirm(`Delete “${meal.name}” and its history? This can’t be undone.`)) {
-                deleteMeal.mutate(meal.id)
-              }
-            }}
+            onDelete={() => setConfirmDelete(meal)}
           />
         ))}
       </main>
@@ -385,6 +383,16 @@ export default function Manager() {
       </button>
 
       {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title={`Delete “${confirmDelete.name}”?`}
+          message="Its history goes with it. This can’t be undone."
+          confirmLabel="Delete Meal"
+          onConfirm={() => deleteMeal.mutate(confirmDelete.id)}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
 
       {recipeTemplate && (
         <RecipeFormSheet
