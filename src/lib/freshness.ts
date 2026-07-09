@@ -60,8 +60,6 @@ export function freshnessOf(
   return { key, label, daysLeft, color: COLORS[key], fraction }
 }
 
-export const FRESHNESS_ORDER: Record<FreshnessKey, number> = { expired: 0, now: 1, soon: 2, fresh: 3 }
-
 export function urgencySort(a: Meal, b: Meal): number {
   return a.best_before.localeCompare(b.best_before) || a.name.localeCompare(b.name)
 }

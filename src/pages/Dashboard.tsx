@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useMeals, useMealMutations, useRealtimeSync } from '../hooks/useMeals'
 import { usePlan, usePlanMutations } from '../hooks/usePlanner'
 import { useChores, useChoreMutations } from '../hooks/useChores'
 import { useMembers, memberName } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
+import { useToday } from '../hooks/useToday'
 import { freshnessOf } from '../lib/freshness'
 import { groupChores, dueLabel } from '../lib/chores'
-import { fmtDateFull, fmtNum, todayISO } from '../lib/format'
+import { fmtDateFull, fmtNum } from '../lib/format'
 import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
@@ -53,6 +54,7 @@ export default function Dashboard() {
   useRealtimeSync()
   useWakeLock()
   const now = useClock()
+  const todayIso = useToday()
   const { data: meals, isLoading } = useMeals()
   const { data: plan } = usePlan()
   const { data: chores } = useChores()
@@ -69,14 +71,16 @@ export default function Dashboard() {
     [meals],
   )
 
+  // Evaluated against the ticking date so the badge stays honest as days pass
   const stats = useMemo(() => {
+    const today = parseISO(todayIso)
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
     const urgent = active.filter((m) => {
-      const k = freshnessOf(m).key
+      const k = freshnessOf(m, today).key
       return k === 'expired' || k === 'now'
     }).length
     return { meals: active.length, packs, urgent }
-  }, [active])
+  }, [active, todayIso])
 
   // Auto-dismiss the drill-down after 30s idle so the kiosk returns to the grid
   useEffect(() => {
@@ -100,11 +104,10 @@ export default function Dashboard() {
 
   // Overdue + due-today chores, plus one-offs finished today (shown ticked)
   const todayChores = useMemo(() => {
-    const today = todayISO()
-    const g = groupChores(chores ?? [], today)
-    const doneToday = g.done.filter((c) => (c.completed_at ?? '').slice(0, 10) === today)
+    const g = groupChores(chores ?? [], todayIso)
+    const doneToday = g.done.filter((c) => (c.completed_at ?? '').slice(0, 10) === todayIso)
     return [...g.overdue, ...g.today, ...doneToday]
-  }, [chores])
+  }, [chores, todayIso])
 
   function tickChore(chore: Chore) {
     if (chore.completed_at != null) {
@@ -231,7 +234,7 @@ export default function Dashboard() {
 
           {todayChores.map((chore) => {
             const done = chore.completed_at != null
-            const overdue = !done && chore.due_date != null && chore.due_date < todayISO()
+            const overdue = !done && chore.due_date != null && chore.due_date < todayIso
             return (
               <div
                 key={chore.id}
@@ -245,7 +248,7 @@ export default function Dashboard() {
                     style={{ color: overdue ? 'var(--orange)' : 'var(--ink-2)' }}
                   >
                     🧹 {chore.assigned_to ? memberName(members, chore.assigned_to) : 'Anyone'}
-                    {overdue ? ` · ${dueLabel(chore.due_date, todayISO())}` : ''}
+                    {overdue ? ` · ${dueLabel(chore.due_date, todayIso)}` : ''}
                   </p>
                   <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
                     {chore.title}

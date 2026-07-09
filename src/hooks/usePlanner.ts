@@ -1,25 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { addDays, format, subDays } from 'date-fns'
+import { addDays, format, parseISO, subDays } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import type { EatPackResult, PlanEntry, PlanEntryInsert } from '../lib/types'
 import { useHousehold } from './useHousehold'
+import { useToday } from './useToday'
 
 const PLAN_KEY = ['plan']
 export const planKey = (hid: string | null) => [...PLAN_KEY, hid]
 
 /** The home planner covers a week of history through two weeks ahead. */
-export function planRange(today = new Date()) {
+export function planRange(todayIso: string) {
+  const today = parseISO(todayIso)
   return { start: subDays(today, 7), end: addDays(today, 14) }
 }
 
 export function usePlan() {
   const { household } = useHousehold()
   const hid = household?.id ?? null
+  const todayIso = useToday()
   return useQuery({
-    queryKey: planKey(hid),
+    // todayIso in the key rolls the fetch window at midnight on long-lived sessions
+    queryKey: [...planKey(hid), todayIso],
     enabled: !!hid,
     queryFn: async (): Promise<PlanEntry[]> => {
-      const { start, end } = planRange()
+      const { start, end } = planRange(todayIso)
       const { data, error } = await supabase
         .from('plan_entries')
         .select('*, meals(*)')
@@ -38,7 +42,8 @@ export function usePlan() {
 export function usePlanMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = planKey(household?.id ?? null)
+  const todayIso = useToday()
+  const key = [...planKey(household?.id ?? null), todayIso]
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: PLAN_KEY })
     qc.invalidateQueries({ queryKey: ['meals'] })

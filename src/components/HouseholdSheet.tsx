@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useHousehold } from '../hooks/useHousehold'
@@ -14,7 +13,6 @@ export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
   const { data: members } = useMembers()
   const { updateDisplayName } = useMemberMutations()
   const { toast } = useToast()
-  const qc = useQueryClient()
   const [editingName, setEditingName] = useState<string | null>(null)
 
   function saveName() {
@@ -116,10 +114,7 @@ export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
             <p className="truncate text-[15px] font-semibold">{session?.user.email}</p>
           </div>
           <button
-            onClick={() => {
-              qc.clear()
-              supabase.auth.signOut()
-            }}
+            onClick={() => supabase.auth.signOut()}
             className="pressable shrink-0 text-[14px] font-semibold"
             style={{ color: 'var(--red)' }}
           >

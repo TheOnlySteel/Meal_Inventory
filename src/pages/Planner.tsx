@@ -5,8 +5,8 @@ import { useChores, useChoreMutations } from '../hooks/useChores'
 import { useMembers } from '../hooks/useMembers'
 import { useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
+import { useToday } from '../hooks/useToday'
 import { groupChores } from '../lib/chores'
-import { todayISO } from '../lib/format'
 import ChoreRow from '../components/ChoreRow'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum } from '../lib/format'
@@ -24,14 +24,15 @@ export default function Planner() {
   const { completeChore, uncompleteChore } = useChoreMutations()
   const { addItem } = useShoppingMutations()
   const { toast } = useToast()
+  const todayIso = useToday()
   const [selected, setSelected] = useState(() => new Date())
   const [sheetOpen, setSheetOpen] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
 
   const days = useMemo(() => {
-    const { start } = planRange()
+    const { start } = planRange(todayIso)
     return Array.from({ length: DAY_COUNT }, (_, i) => addDays(start, i))
-  }, [])
+  }, [todayIso])
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlanEntry[]>()
@@ -54,9 +55,9 @@ export default function Planner() {
 
   // Overdue + due-today chores for the home card (today only)
   const todayChores = useMemo(() => {
-    const g = groupChores(chores ?? [], todayISO())
+    const g = groupChores(chores ?? [], todayIso)
     return [...g.overdue, ...g.today]
-  }, [chores])
+  }, [chores, todayIso])
 
   function toggleChore(chore: (typeof todayChores)[number]) {
     if (chore.completed_at != null) {
@@ -70,12 +71,17 @@ export default function Planner() {
     })
   }
 
-  // Center today's pill on first render
+  // Follow the calendar: when the day rolls over, jump selection back to today
+  useEffect(() => {
+    setSelected(parseISO(todayIso))
+  }, [todayIso])
+
+  // Center today's pill on mount and at each rollover
   useEffect(() => {
     stripRef.current
       ?.querySelector('[data-today="true"]')
       ?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [])
+  }, [todayIso])
 
   function displayName(e: PlanEntry) {
     return e.meals?.name ?? e.title ?? 'Untitled'

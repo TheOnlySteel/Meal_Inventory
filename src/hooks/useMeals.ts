@@ -54,9 +54,12 @@ export function useTodayLog() {
 /** Subscribe to realtime changes and invalidate caches (keeps every device live). */
 export function useRealtimeSync() {
   const qc = useQueryClient()
+  const { household } = useHousehold()
+  const hid = household?.id ?? null
   useEffect(() => {
+    if (!hid) return
     const channel = supabase
-      .channel('household-live')
+      .channel(`household-live-${hid}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, () => {
         qc.invalidateQueries({ queryKey: MEALS_KEY })
       })
@@ -82,7 +85,7 @@ export function useRealtimeSync() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [qc])
+  }, [qc, hid])
 }
 
 function patchMealCache(
