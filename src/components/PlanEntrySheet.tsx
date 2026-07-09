@@ -7,6 +7,7 @@ import { freshnessOf } from '../lib/freshness'
 import type { PlanSlot } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import Sheet from './Sheet'
+import Icon from './Icon'
 
 interface Props {
   date: Date
@@ -67,11 +68,11 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
             <button
               key={s.key}
               onClick={() => setSlot(s.key)}
-              className={`pressable flex-1 rounded-lg py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`pressable flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[13px] font-semibold transition-colors ${
                 slot === s.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
               }`}
             >
-              {s.icon} {s.label}
+              <Icon name={s.icon} size={14} /> {s.label}
             </button>
           ))}
         </div>
@@ -125,8 +126,9 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-semibold">{meal.name}</span>
-                      <span className="block text-[12px] text-ink2">
-                        {loc?.icon} {loc?.label} · {meal.pack_quantity} pack
+                      <span className="flex items-center gap-1 text-[12px] text-ink2">
+                        {loc ? <Icon name={loc.icon} size={12} /> : null}
+                        {loc?.label} · {meal.pack_quantity} pack
                         {meal.pack_quantity === 1 ? '' : 's'} · {fresh.label}
                       </span>
                     </span>

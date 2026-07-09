@@ -5,6 +5,7 @@ import { NUTRIENTS, STORAGE_LOCATIONS } from '../lib/types'
 import { DEFAULT_LIFE, daysFromLife, lifeFromDays, usesWeeks } from '../lib/shelfLife'
 import NutrientFields from './NutrientFields'
 import Sheet from './Sheet'
+import Icon from './Icon'
 
 interface Props {
   editing?: Recipe | null
@@ -161,11 +162,11 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
                   key={l.key}
                   type="button"
                   onClick={() => switchLocation(l.key)}
-                  className={`pressable flex-1 rounded-lg py-2 text-[14px] font-semibold transition-colors ${
+                  className={`pressable flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[14px] font-semibold transition-colors ${
                     location === l.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
                   }`}
                 >
-                  {l.icon} {l.label}
+                  <Icon name={l.icon} size={15} /> {l.label}
                 </button>
               ))}
             </div>

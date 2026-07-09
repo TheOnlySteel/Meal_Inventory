@@ -62,8 +62,8 @@
 }
 
 :root {
-  /* keeps FABs, toasts and page bottoms clear of the tab bar + home indicator */
-  --bottom-clearance: calc(4.75rem + env(safe-area-inset-bottom));
+  /* keeps FABs, toasts and page bottoms clear of the floating tab capsule */
+  --bottom-clearance: calc(5.25rem + env(safe-area-inset-bottom));
 }
 
 html {
@@ -77,6 +77,8 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   font-feature-settings: "tnum";
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
 }
 
@@ -93,6 +95,13 @@ input, select, textarea {
   background: var(--glass);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Floating tab capsule: denser frosted glass, reads on any content behind it */
+.tab-glass {
+  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
 }
 
 .card-shadow { box-shadow: var(--shadow-card); }

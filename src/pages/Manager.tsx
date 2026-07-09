@@ -10,6 +10,8 @@ import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
 import HouseholdSheet from '../components/HouseholdSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
+import Icon from '../components/Icon'
+import ConfirmSheet from '../components/ConfirmSheet'
 import { useRecipeMutations } from '../hooks/useRecipes'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
@@ -32,6 +34,7 @@ export default function Manager() {
   const [editing, setEditing] = useState<Meal | null>(null)
   const [template, setTemplate] = useState<Meal | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Meal | null>(null)
   const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
   const { addRecipe } = useRecipeMutations()
 
@@ -250,16 +253,16 @@ export default function Manager() {
           <div className="flex items-center justify-between gap-2">
             <div className="no-scrollbar flex gap-1.5 overflow-x-auto pr-2">
               {(
-                [{ key: 'all' as const, label: 'All', icon: '' }, ...STORAGE_LOCATIONS]
+                [{ key: 'all' as const, label: 'All', icon: null }, ...STORAGE_LOCATIONS]
               ).map((l) => (
                 <button
                   key={l.key}
                   onClick={() => setLocFilter(l.key)}
-                  className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                  className={`pressable flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
                     locFilter === l.key ? 'bg-tint text-white' : 'bg-card2 text-ink2'
                   }`}
                 >
-                  {l.icon ? `${l.icon} ` : ''}
+                  {l.icon ? <Icon name={l.icon} size={13} /> : null}
                   {l.label}
                 </button>
               ))}
@@ -303,7 +306,7 @@ export default function Manager() {
       )}
 
       {/* Meal list */}
-      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-40">
+      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-[calc(var(--bottom-clearance)+4.5rem)]">
         {isLoading &&
           [1, 2, 3].map((i) => <div key={i} className="skeleton h-[92px] w-full" />)}
 
@@ -315,7 +318,7 @@ export default function Manager() {
 
         {!isLoading && !error && visible.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="text-4xl">🥡</span>
+            <Icon name="takeout" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">
               {search
                 ? 'No meals match'
@@ -354,11 +357,7 @@ export default function Manager() {
               })
             }}
             onRestore={() => archiveMeal.mutate({ id: meal.id, archived: false })}
-            onDelete={() => {
-              if (confirm(`Delete “${meal.name}” and its history? This can’t be undone.`)) {
-                deleteMeal.mutate(meal.id)
-              }
-            }}
+            onDelete={() => setConfirmDelete(meal)}
           />
         ))}
       </main>
@@ -384,6 +383,16 @@ export default function Manager() {
       </button>
 
       {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title={`Delete “${confirmDelete.name}”?`}
+          message="Its history goes with it. This can’t be undone."
+          confirmLabel="Delete Meal"
+          onConfirm={() => deleteMeal.mutate(confirmDelete.id)}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
 
       {recipeTemplate && (
         <RecipeFormSheet

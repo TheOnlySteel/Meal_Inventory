@@ -4,6 +4,7 @@ import { todayISO } from '../lib/format'
 import { memberName } from '../hooks/useMembers'
 import { pressableProps } from '../lib/a11y'
 import MemberAvatar from './MemberAvatar'
+import Icon from './Icon'
 
 interface Props {
   chore: Chore
@@ -64,7 +65,9 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
             {done ? 'Done' : dueLabel(chore.due_date, today)}
           </span>
           {recur && (
-            <span className="rounded-full bg-card2 px-2 py-0.5 font-medium">↻ {recur}</span>
+            <span className="flex items-center gap-1 rounded-full bg-card2 px-2 py-0.5 font-medium">
+              <Icon name="repeat" size={11} /> {recur}
+            </span>
           )}
           {chore.assigned_to && (
             <span className="flex min-w-0 items-center gap-1">

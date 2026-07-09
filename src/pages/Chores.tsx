@@ -7,6 +7,7 @@ import { groupChores } from '../lib/chores'
 import { todayISO } from '../lib/format'
 import ChoreRow from '../components/ChoreRow'
 import ChoreFormSheet from '../components/ChoreFormSheet'
+import Icon from '../components/Icon'
 
 const SECTIONS = [
   { key: 'overdue', label: 'Overdue' },
@@ -82,7 +83,7 @@ export default function Chores() {
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-28">
+      <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-[calc(var(--bottom-clearance)+4.5rem)]">
         {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-16 w-full" />)}
 
         {error && (
@@ -93,7 +94,7 @@ export default function Chores() {
 
         {!isLoading && !error && (chores ?? []).length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="text-4xl">🧹</span>
+            <Icon name="checklist" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">No chores yet</p>
             <p className="max-w-60 text-[14px] text-ink2">
               Add one-off tasks or recurring routines and hand them out.

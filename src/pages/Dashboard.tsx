@@ -16,6 +16,7 @@ import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
 import Sheet from '../components/Sheet'
+import Icon from '../components/Icon'
 
 function useClock() {
   const [now, setNow] = useState(new Date())
@@ -203,8 +204,8 @@ export default function Dashboard() {
                 }`}
               >
                 <div>
-                  <p className="text-[11px] font-semibold tracking-wide text-ink2 uppercase">
-                    {slotDef?.icon} {slotDef?.label}
+                  <p className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-ink2 uppercase">
+                    {slotDef ? <Icon name={slotDef.icon} size={12} /> : null} {slotDef?.label}
                   </p>
                   <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
                     {entry.meals?.name ?? entry.title}
@@ -246,10 +247,11 @@ export default function Dashboard() {
               >
                 <div>
                   <p
-                    className="text-[11px] font-semibold tracking-wide uppercase"
+                    className="flex items-center gap-1 text-[11px] font-semibold tracking-wide uppercase"
                     style={{ color: overdue ? 'var(--orange)' : 'var(--ink-2)' }}
                   >
-                    🧹 {chore.assigned_to ? memberName(members, chore.assigned_to) : 'Anyone'}
+                    <Icon name="checklist" size={12} />{' '}
+                    {chore.assigned_to ? memberName(members, chore.assigned_to) : 'Anyone'}
                     {overdue ? ` · ${dueLabel(chore.due_date, todayIso)}` : ''}
                   </p>
                   <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
@@ -289,7 +291,7 @@ export default function Dashboard() {
 
         {!isLoading && active.length === 0 && (
           <div className="col-span-full flex flex-col items-center gap-3 py-24">
-            <span className="text-6xl">🥡</span>
+            <Icon name="takeout" size={72} strokeWidth={1} className="text-ink3" />
             <p className="text-[22px] font-semibold text-ink2">The larder is empty</p>
           </div>
         )}
@@ -313,8 +315,11 @@ export default function Dashboard() {
                   >
                     {fresh.label}
                     <span className="text-ink3"> · </span>
-                    <span className="text-ink2 whitespace-nowrap">
-                      {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.icon}{' '}
+                    <span className="inline-flex items-center gap-1 text-ink2 whitespace-nowrap align-middle">
+                      <Icon
+                        name={STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)!.icon}
+                        size={13}
+                      />
                       {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.label}
                     </span>
                   </p>
