@@ -5,6 +5,7 @@ import { fmtDate, fmtNum } from '../lib/format'
 import { pressableProps } from '../lib/a11y'
 import FreshnessRing from './FreshnessRing'
 import MacroGrid from './MacroGrid'
+import Icon from './Icon'
 
 interface Props {
   meal: Meal
@@ -64,7 +65,12 @@ export default function MealCard({
               </span>
             )}
             <span className="text-ink3"> · </span>
-            {location ? `${location.icon} ${location.label}` : null}
+            {location ? (
+              <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+                <Icon name={location.icon} size={12} className="self-center" />
+                {location.label}
+              </span>
+            ) : null}
             <span className="text-ink3"> · </span>
             {fmtDate(meal.prep_date)} → {fmtDate(meal.best_before)}
             {meal.meal_type !== 'meal' && typeLabel ? (

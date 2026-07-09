@@ -10,6 +10,7 @@ import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
 import HouseholdSheet from '../components/HouseholdSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
+import Icon from '../components/Icon'
 import { useRecipeMutations } from '../hooks/useRecipes'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
@@ -250,16 +251,16 @@ export default function Manager() {
           <div className="flex items-center justify-between gap-2">
             <div className="no-scrollbar flex gap-1.5 overflow-x-auto pr-2">
               {(
-                [{ key: 'all' as const, label: 'All', icon: '' }, ...STORAGE_LOCATIONS]
+                [{ key: 'all' as const, label: 'All', icon: null }, ...STORAGE_LOCATIONS]
               ).map((l) => (
                 <button
                   key={l.key}
                   onClick={() => setLocFilter(l.key)}
-                  className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                  className={`pressable flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
                     locFilter === l.key ? 'bg-tint text-white' : 'bg-card2 text-ink2'
                   }`}
                 >
-                  {l.icon ? `${l.icon} ` : ''}
+                  {l.icon ? <Icon name={l.icon} size={13} /> : null}
                   {l.label}
                 </button>
               ))}
@@ -315,7 +316,7 @@ export default function Manager() {
 
         {!isLoading && !error && visible.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="text-4xl">🥡</span>
+            <Icon name="takeout" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">
               {search
                 ? 'No meals match'

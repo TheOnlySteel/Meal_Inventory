@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useHouseholdMutations } from '../hooks/useHousehold'
+import Icon from '../components/Icon'
 
 /** First-run screen: create a household or join one with an invite code. */
 export default function HouseholdSetup() {
@@ -46,7 +47,7 @@ export default function HouseholdSetup() {
 
       <div className="pop-in relative z-10 flex w-full max-w-sm flex-col gap-5 rounded-3xl glass card-shadow p-8">
         <div className="text-center">
-          <span className="text-4xl">🏡</span>
+          <Icon name="house" size={44} strokeWidth={1.3} className="mx-auto text-tint" />
           <h1 className="mt-2 text-[24px] font-bold tracking-tight">Set up your household</h1>
           <p className="mt-1 text-[14px] text-ink2">
             Meals, plans and shopping lists are shared with everyone in your household.

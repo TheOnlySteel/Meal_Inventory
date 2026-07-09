@@ -6,6 +6,7 @@ import { useMembers } from '../hooks/useMembers'
 import { useAuth } from '../hooks/useAuth'
 import MemberAvatar from './MemberAvatar'
 import Sheet from './Sheet'
+import Icon from './Icon'
 
 interface Props {
   editing?: Chore | null
@@ -132,7 +133,7 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
                   onClick={() => setRecurDays(o.days)}
                   className={chipCls(recurDays === o.days)}
                 >
-                  {o.days != null ? '↻ ' : ''}
+                  {o.days != null ? <Icon name="repeat" size={12} /> : null}
                   {o.label}
                 </button>
               ))}

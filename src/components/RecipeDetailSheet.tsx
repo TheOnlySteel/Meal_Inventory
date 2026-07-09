@@ -3,6 +3,7 @@ import { STORAGE_LOCATIONS } from '../lib/types'
 import { ingredientLines } from '../hooks/useRecipes'
 import MacroGrid from './MacroGrid'
 import Sheet from './Sheet'
+import Icon from './Icon'
 
 interface Props {
   recipe: Recipe
@@ -56,8 +57,13 @@ export default function RecipeDetailSheet({
         <div className="no-scrollbar flex flex-col gap-5 overflow-y-auto px-5 pt-1 pb-8 safe-b">
           <div>
             <h2 className="text-[26px] leading-tight font-bold tracking-tight">{recipe.name}</h2>
-            <p className="mt-1 text-[13px] text-ink2">
-              {STORAGE_LOCATIONS.find((l) => l.key === recipe.default_storage_location)?.icon}{' '}
+            <p className="mt-1 flex items-center gap-1 text-[13px] text-ink2">
+              <Icon
+                name={
+                  STORAGE_LOCATIONS.find((l) => l.key === recipe.default_storage_location)!.icon
+                }
+                size={13}
+              />
               Usually {recipe.default_storage_location} · {recipe.default_shelf_life_days} day
               {recipe.default_shelf_life_days === 1 ? '' : 's'} shelf life
             </p>
@@ -113,13 +119,13 @@ export default function RecipeDetailSheet({
                 <button
                   key={l.key}
                   onClick={() => onSendToLarder(l.key)}
-                  className={`pressable flex-1 rounded-2xl py-3.5 text-[15px] font-semibold ${
+                  className={`pressable flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-3.5 text-[15px] font-semibold ${
                     l.key === recipe.default_storage_location
                       ? 'bg-tint text-white'
                       : 'bg-card2 text-tint'
                   }`}
                 >
-                  {l.icon} {l.label}
+                  <Icon name={l.icon} size={16} /> {l.label}
                 </button>
               ))}
             </div>

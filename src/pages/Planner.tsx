@@ -13,6 +13,7 @@ import { fmtNum } from '../lib/format'
 import type { PlanEntry } from '../lib/types'
 import { PLAN_SLOTS } from '../lib/types'
 import PlanEntrySheet from '../components/PlanEntrySheet'
+import Icon from '../components/Icon'
 
 const DAY_COUNT = 22 // -7 … +14
 
@@ -192,7 +193,7 @@ export default function Planner() {
 
         {!isLoading && !error && dayEntries.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-14 text-center">
-            <span className="text-4xl">🗓️</span>
+            <Icon name="calendar" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">Nothing planned for this day</p>
             <button
               onClick={() => setSheetOpen(true)}
@@ -209,8 +210,8 @@ export default function Planner() {
             const slotEntries = dayEntries.filter((e) => e.slot === slot.key)
             return (
               <section key={slot.key} className="flex flex-col gap-2">
-                <h2 className="px-1 text-[13px] font-semibold tracking-wide text-ink2 uppercase">
-                  {slot.icon} {slot.label}
+                <h2 className="flex items-center gap-1.5 px-1 text-[13px] font-semibold tracking-wide text-ink2 uppercase">
+                  <Icon name={slot.icon} size={14} /> {slot.label}
                 </h2>
                 {slotEntries.map((entry) => {
                   const done = entry.completed_at != null
@@ -299,8 +300,8 @@ export default function Planner() {
         {/* Today's chores — home is the source of truth for the day */}
         {isToday(selected) && todayChores.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h2 className="px-1 text-[13px] font-semibold tracking-wide text-ink2 uppercase">
-              🧹 Today’s chores
+            <h2 className="flex items-center gap-1.5 px-1 text-[13px] font-semibold tracking-wide text-ink2 uppercase">
+              <Icon name="checklist" size={14} /> Today’s chores
             </h2>
             {todayChores.map((chore) => (
               <ChoreRow
@@ -316,8 +317,8 @@ export default function Planner() {
         {/* To-make roundup across the whole strip */}
         {toMake.length > 0 && (
           <section className="mt-2 flex flex-col gap-2 rounded-2xl bg-card p-4 card-shadow">
-            <h2 className="text-[13px] font-semibold tracking-wide text-ink2 uppercase">
-              👩‍🍳 To make
+            <h2 className="flex items-center gap-1.5 text-[13px] font-semibold tracking-wide text-ink2 uppercase">
+              <Icon name="chefhat" size={14} /> To make
             </h2>
             {toMake.map((entry) => (
               <div key={entry.id} className="flex items-center justify-between gap-3">

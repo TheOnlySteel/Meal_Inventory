@@ -4,6 +4,7 @@ import { useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import type { ShoppingItem } from '../lib/types'
 import { pressableProps } from '../lib/a11y'
+import Icon from '../components/Icon'
 
 export default function Shopping() {
   const { data: items, isLoading, error } = useShopping()
@@ -80,7 +81,7 @@ export default function Shopping() {
 
         {!isLoading && !error && open.length === 0 && done.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="text-4xl">🛒</span>
+            <Icon name="cart" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">Nothing to buy</p>
             <p className="max-w-60 text-[14px] text-ink2">
               Add items above, or send “to make” meals here from the planner.

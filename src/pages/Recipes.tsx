@@ -10,6 +10,7 @@ import { fmtNum, todayISO } from '../lib/format'
 import RecipeDetailSheet from '../components/RecipeDetailSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
 import MealFormSheet from '../components/MealFormSheet'
+import Icon from '../components/Icon'
 
 /** Meal-shaped template so MealFormSheet opens prefilled from a recipe. */
 function mealTemplateFromRecipe(r: Recipe, loc: StorageLocation): Meal {
@@ -144,7 +145,7 @@ export default function Recipes() {
 
         {!isLoading && !error && visible.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="text-4xl">📖</span>
+            <Icon name="book" size={52} strokeWidth={1.1} className="text-ink3" />
             <p className="text-[17px] font-semibold">
               {search ? 'No recipes match' : 'No recipes yet'}
             </p>
@@ -167,8 +168,8 @@ export default function Recipes() {
             >
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-[17px] leading-tight font-semibold">{recipe.name}</h3>
-                <p className="mt-0.5 text-[13px] text-ink2">
-                  {loc?.icon} {loc?.label}
+                <p className="mt-0.5 flex items-center gap-1 text-[13px] text-ink2">
+                  {loc ? <Icon name={loc.icon} size={13} /> : null} {loc?.label}
                   {recipe.calories != null ? (
                     <> · {fmtNum(recipe.calories)} kcal/serv</>
                   ) : null}

@@ -1,10 +1,12 @@
+import type { IconName } from '../components/Icon'
+
 export type StorageLocation = 'freezer' | 'fridge' | 'shelf'
 export type MealType = 'meal' | 'component' | 'ingredient'
 
-export const STORAGE_LOCATIONS: { key: StorageLocation; label: string; icon: string }[] = [
-  { key: 'freezer', label: 'Freezer', icon: '❄️' },
-  { key: 'fridge', label: 'Fridge', icon: '🧊' },
-  { key: 'shelf', label: 'Shelf', icon: '🫙' },
+export const STORAGE_LOCATIONS: { key: StorageLocation; label: string; icon: IconName }[] = [
+  { key: 'freezer', label: 'Freezer', icon: 'snowflake' },
+  { key: 'fridge', label: 'Fridge', icon: 'fridge' },
+  { key: 'shelf', label: 'Shelf', icon: 'jar' },
 ]
 
 export const MEAL_TYPES: { key: MealType; label: string }[] = [
@@ -110,11 +112,11 @@ export interface HouseholdMember {
 
 export type PlanSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
-export const PLAN_SLOTS: { key: PlanSlot; label: string; icon: string }[] = [
-  { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { key: 'lunch', label: 'Lunch', icon: '☀️' },
-  { key: 'dinner', label: 'Dinner', icon: '🌙' },
-  { key: 'snack', label: 'Snack', icon: '🍎' },
+export const PLAN_SLOTS: { key: PlanSlot; label: string; icon: IconName }[] = [
+  { key: 'breakfast', label: 'Breakfast', icon: 'sunrise' },
+  { key: 'lunch', label: 'Lunch', icon: 'sun' },
+  { key: 'dinner', label: 'Dinner', icon: 'moon' },
+  { key: 'snack', label: 'Snack', icon: 'apple' },
 ]
 
 export interface PlanEntry {
