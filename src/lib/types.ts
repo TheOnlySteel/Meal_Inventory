@@ -100,6 +100,14 @@ export interface Household {
   invite_code: string
 }
 
+export interface HouseholdMember {
+  household_id: string
+  user_id: string
+  role: 'owner' | 'member'
+  display_name: string | null
+  created_at: string
+}
+
 export type PlanSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
 export const PLAN_SLOTS: { key: PlanSlot; label: string; icon: string }[] = [
