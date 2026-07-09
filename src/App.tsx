@@ -38,8 +38,9 @@ export default function App() {
           </Protected>
         }
       >
-        <Route path="/" element={<Manager />} />
-        <Route path="/planner" element={<Planner />} />
+        <Route path="/" element={<Planner />} />
+        <Route path="/larder" element={<Manager />} />
+        <Route path="/planner" element={<Navigate to="/" replace />} />
         <Route path="/shopping" element={<Shopping />} />
       </Route>
       <Route

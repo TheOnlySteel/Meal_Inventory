@@ -9,21 +9,20 @@ import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 
 interface Props {
   date: Date
-  slot: PlanSlot
+  initialSlot?: PlanSlot
   onClose: () => void
 }
 
 /** Add a plan entry: pick a meal from the larder, or note something to make. */
-export default function PlanEntrySheet({ date, slot, onClose }: Props) {
+export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
   const { data: meals } = useMeals()
   const { addEntry } = usePlanMutations()
   const { toast } = useToast()
   const [mode, setMode] = useState<'larder' | 'tomake'>('larder')
+  const [slot, setSlot] = useState<PlanSlot>(initialSlot ?? 'dinner')
   const [search, setSearch] = useState('')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
-
-  const slotDef = PLAN_SLOTS.find((s) => s.key === slot)
 
   const candidates = useMemo(() => {
     const active = (meals ?? []).filter((m) => m.archived_at == null && m.pack_quantity > 0)
@@ -54,10 +53,22 @@ export default function PlanEntrySheet({ date, slot, onClose }: Props) {
           <button onClick={onClose} className="pressable text-[16px] text-tint">
             Cancel
           </button>
-          <h2 className="text-[16px] font-semibold">
-            {slotDef?.label} · {format(date, 'EEE, MMM d')}
-          </h2>
+          <h2 className="text-[16px] font-semibold">{format(date, 'EEE, MMM d')}</h2>
           <span className="w-12" />
+        </div>
+
+        <div className="mx-5 mb-2 flex rounded-xl bg-card2 p-0.5">
+          {PLAN_SLOTS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSlot(s.key)}
+              className={`pressable flex-1 rounded-lg py-1.5 text-[13px] font-semibold transition-colors ${
+                slot === s.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
+              }`}
+            >
+              {s.icon} {s.label}
+            </button>
+          ))}
         </div>
 
         <div className="mx-5 mb-3 flex rounded-xl bg-card2 p-0.5">

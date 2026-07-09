@@ -7,9 +7,9 @@ import { useHousehold } from './useHousehold'
 const PLAN_KEY = ['plan']
 export const planKey = (hid: string | null) => [...PLAN_KEY, hid]
 
-/** The planner strip covers yesterday → 13 days out. */
+/** The home planner covers a week of history through two weeks ahead. */
 export function planRange(today = new Date()) {
-  return { start: subDays(today, 1), end: addDays(today, 13) }
+  return { start: subDays(today, 7), end: addDays(today, 14) }
 }
 
 export function usePlan() {

@@ -3,16 +3,17 @@ import { NavLink } from 'react-router-dom'
 const TABS = [
   {
     to: '/',
-    label: 'Larder',
+    label: 'Home',
     icon: (
       <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5ZM9.5 20v-6h5v6" />
     ),
   },
   {
-    to: '/planner',
-    label: 'Planner',
+    to: '/larder',
+    label: 'Larder',
     icon: (
-      <path d="M7 3.5v3M17 3.5v3M4.5 5.5h15A0 0 0 0 1 19.5 5.5v13a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5v-13a0 0 0 0 1 0 0ZM4.5 10h15M9 14h2M13 14h2M9 17h2" />
+      // lidded jar
+      <path d="M8.5 3.5h7M7.5 6.5h9M8 6.5c-1.6 1.3-2.5 3-2.5 5v6.5A2.5 2.5 0 0 0 8 20.5h8a2.5 2.5 0 0 0 2.5-2.5V11.5c0-2-.9-3.7-2.5-5M5.5 13.5h13" />
     ),
   },
   {
