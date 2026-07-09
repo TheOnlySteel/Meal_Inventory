@@ -56,7 +56,7 @@ export default function MealCard({
             {depleted ? (
               'Depleted'
             ) : (
-              <span style={{ color: fresh.key !== 'fresh' ? fresh.color : undefined }}>
+              <span style={{ color: fresh.key !== 'fresh' ? fresh.textColor : undefined }}>
                 {fresh.label}
               </span>
             )}

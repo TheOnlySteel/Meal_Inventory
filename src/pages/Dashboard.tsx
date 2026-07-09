@@ -150,7 +150,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
+    <div className="flex h-dvh flex-col overflow-hidden bg-canvas safe-t">
       {/* Header */}
       <header className="flex items-end justify-between px-8 pt-6 pb-4">
         <div>
@@ -306,7 +306,7 @@ export default function Dashboard() {
                   <h3 className="truncate text-[19px] leading-snug font-semibold">{meal.name}</h3>
                   <p
                     className="mt-0.5 text-[14px] font-medium"
-                    style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.color }}
+                    style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.textColor }}
                   >
                     {fresh.label}
                     <span className="text-ink3"> · </span>
@@ -379,7 +379,7 @@ export default function Dashboard() {
                       </h2>
                       <p
                         className="mt-1 text-[17px] font-semibold"
-                        style={{ color: fresh.color }}
+                        style={{ color: fresh.textColor }}
                       >
                         {fresh.label}
                       </p>

@@ -39,7 +39,7 @@ export default function FreshnessRing({
       </svg>
       <div
         className="absolute inset-0 flex items-center justify-center font-semibold"
-        style={{ color: freshness.color, fontSize: size * 0.3 }}
+        style={{ color: freshness.textColor, fontSize: size * 0.3 }}
       >
         {freshness.key === 'expired' ? '!' : freshness.daysLeft}
       </div>
