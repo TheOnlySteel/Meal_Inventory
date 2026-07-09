@@ -4,23 +4,8 @@ import { addDays, format, parseISO } from 'date-fns'
 import type { Meal, MealInsert, MealType, NutrientDef, StorageLocation } from '../lib/types'
 import { CORE_NUTRIENTS, EXTENDED_NUTRIENTS, MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { fmtDateFull, todayISO } from '../lib/format'
-
-/** Freezer shelf life reads naturally in weeks; fridge/shelf in days. */
-const usesWeeks = (loc: StorageLocation) => loc === 'freezer'
-
-const DEFAULT_LIFE: Record<StorageLocation, string> = { freezer: '12', fridge: '4', shelf: '7' }
-
-function lifeFromDays(days: number, loc: StorageLocation): string {
-  if (!usesWeeks(loc)) return String(days)
-  const weeks = days / 7
-  return Number.isInteger(weeks) ? String(weeks) : weeks.toFixed(1)
-}
-
-function daysFromLife(life: string, loc: StorageLocation): number {
-  const n = parseFloat(life)
-  if (!Number.isFinite(n) || n <= 0) return 0
-  return Math.max(Math.round(usesWeeks(loc) ? n * 7 : n), 1)
-}
+import { DEFAULT_LIFE, daysFromLife, lifeFromDays, usesWeeks } from '../lib/shelfLife'
+import NutrientFields from './NutrientFields'
 
 interface Props {
   /** Existing meal → edit mode; template (from re-prep/autocomplete) prefills a new meal. */
@@ -58,7 +43,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
   const [packs, setPacks] = useState(String(editing?.pack_quantity ?? base?.initial_pack_quantity ?? 4))
   const [notes, setNotes] = useState(base?.notes ?? '')
   const [nums, setNums] = useState<Record<string, string>>(toFormNums(base))
-  const [showExtended, setShowExtended] = useState(
+  const [nutrientsExpanded, setNutrientsExpanded] = useState(
     EXTENDED_NUTRIENTS.some((n) => base?.[n.key] != null),
   )
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -107,7 +92,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
     setPacks(String(m.initial_pack_quantity))
     setNotes(m.notes ?? '')
     setNums(toFormNums(m))
-    setShowExtended(EXTENDED_NUTRIENTS.some((n) => m[n.key] != null))
+    setNutrientsExpanded(EXTENDED_NUTRIENTS.some((n) => m[n.key] != null))
     setShowSuggestions(false)
   }
 
@@ -136,6 +121,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
       initial_pack_quantity: editing
         ? Math.max(editing.initial_pack_quantity, packQty)
         : packQty,
+      recipe_id: base?.recipe_id ?? null,
       notes: notes.trim() || null,
       calories: numOrNull('calories'),
       protein_g: numOrNull('protein_g'),
@@ -317,71 +303,12 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
             </label>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <span className={labelCls}>Nutrition per serving</span>
-            <div className="grid grid-cols-2 gap-3">
-              {CORE_NUTRIENTS.map((n) => (
-                <label key={n.key} className="flex flex-col gap-1">
-                  <span className="text-[12px] text-ink2">
-                    {n.label} ({n.unit})
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    min="0"
-                    className={inputCls}
-                    value={nums[n.key] ?? ''}
-                    onChange={(e) => setNum(n.key, e.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowExtended((s) => !s)}
-            className="pressable flex items-center gap-1 self-start text-[14px] font-semibold text-tint"
-          >
-            {showExtended ? 'Hide extended nutrition' : 'Extended nutrition'}
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              className={`transition-transform ${showExtended ? 'rotate-180' : ''}`}
-            >
-              <path
-                d="M2 4.5 6 8.5 10 4.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-
-          {showExtended && (
-            <div className="fade-in grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {EXTENDED_NUTRIENTS.map((n) => (
-                <label key={n.key} className="flex flex-col gap-1">
-                  <span className="text-[12px] text-ink2">
-                    {n.label} ({n.unit})
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    min="0"
-                    className={inputCls}
-                    value={nums[n.key] ?? ''}
-                    onChange={(e) => setNum(n.key, e.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          )}
+          <NutrientFields
+            key={nutrientsExpanded ? 'expanded' : 'collapsed'}
+            nums={nums}
+            onChange={setNum}
+            initiallyExpanded={nutrientsExpanded}
+          />
 
           <label className="flex flex-col gap-1.5">
             <span className={labelCls}>Notes</span>

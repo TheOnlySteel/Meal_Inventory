@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import type { Meal } from '../lib/types'
+import type { NutrientValues } from '../lib/types'
 import { CORE_NUTRIENTS, EXTENDED_NUTRIENTS } from '../lib/types'
 import { fmtNum } from '../lib/format'
 
+type MacroSource = NutrientValues & { servings_per_pack: number | string }
+
 /** Macro layer: per-serving / per-pack toggle, extended nutrients behind a disclosure. */
-export default function MacroGrid({ meal, large = false }: { meal: Meal; large?: boolean }) {
+export default function MacroGrid({ meal, large = false }: { meal: MacroSource; large?: boolean }) {
   const [perPack, setPerPack] = useState(false)
   const [showExtended, setShowExtended] = useState(false)
   const mult = perPack ? Number(meal.servings_per_pack) : 1
