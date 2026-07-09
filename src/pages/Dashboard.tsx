@@ -313,7 +313,7 @@ export default function Dashboard() {
                   >
                     {fresh.label}
                     <span className="text-ink3"> · </span>
-                    <span className="text-ink2">
+                    <span className="text-ink2 whitespace-nowrap">
                       {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.icon}{' '}
                       {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.label}
                     </span>
