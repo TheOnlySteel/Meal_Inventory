@@ -168,6 +168,14 @@ input, select, textarea {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
+/* Expands a small control's tap area toward Apple's 44pt minimum */
+.hit { position: relative; }
+.hit::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
 .safe-b { padding-bottom: env(safe-area-inset-bottom); }
 .safe-t { padding-top: env(safe-area-inset-top); }
 

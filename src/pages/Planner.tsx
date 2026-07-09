@@ -217,7 +217,7 @@ export default function Planner() {
                           done ? uncompleteEntry.mutate(entry.id) : onComplete(entry)
                         }
                         aria-label={done ? 'Mark not done' : 'Mark done'}
-                        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+                        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
                         style={{
                           borderColor: done ? 'var(--green)' : 'var(--sep)',
                           background: done ? 'var(--green)' : 'transparent',
@@ -267,7 +267,7 @@ export default function Planner() {
                       <button
                         onClick={() => deleteEntry.mutate(entry.id)}
                         aria-label="Remove from plan"
-                        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
+                        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24">
                           <path

@@ -175,7 +175,7 @@ export default function Manager() {
             <button
               onClick={() => setSettingsOpen(true)}
               aria-label="Household settings"
-              className="pressable flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
+              className="pressable hit flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="3.5" />

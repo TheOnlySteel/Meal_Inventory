@@ -2,6 +2,7 @@ import type { Chore, HouseholdMember } from '../lib/types'
 import { dueLabel, recurrenceLabel } from '../lib/chores'
 import { todayISO } from '../lib/format'
 import { memberName } from '../hooks/useMembers'
+import { pressableProps } from '../lib/a11y'
 import MemberAvatar from './MemberAvatar'
 
 interface Props {
@@ -23,6 +24,7 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
   return (
     <div
       onClick={onBody}
+      {...(onBody ? pressableProps(onBody) : {})}
       className={`pop-in flex items-center gap-3 rounded-2xl bg-card px-4 py-3 card-shadow ${
         done ? 'opacity-60' : ''
       } ${onBody ? 'cursor-pointer' : ''}`}
@@ -33,7 +35,7 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
           onToggle()
         }}
         aria-label={done ? 'Mark not done' : 'Mark done'}
-        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
         style={{
           borderColor: done ? 'var(--green)' : 'var(--sep)',
           background: done ? 'var(--green)' : 'transparent',
@@ -84,7 +86,7 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
             onDelete()
           }}
           aria-label={`Delete ${chore.title}`}
-          className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
+          className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
         >
           <svg width="14" height="14" viewBox="0 0 24 24">
             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />

@@ -10,6 +10,7 @@ import { useToday } from '../hooks/useToday'
 import { freshnessOf } from '../lib/freshness'
 import { groupChores, dueLabel } from '../lib/chores'
 import { fmtDateFull, fmtNum } from '../lib/format'
+import { pressableProps } from '../lib/a11y'
 import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
@@ -212,7 +213,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => tickPlan(entry)}
                   aria-label={done ? 'Mark not done' : 'Mark done'}
-                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  className="pressable hit flex h-11 w-11 items-center justify-center rounded-full transition-colors"
                   style={{
                     background: done ? 'var(--green)' : 'var(--card-2)',
                     color: done ? 'white' : 'var(--ink-2)',
@@ -258,7 +259,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => tickChore(chore)}
                   aria-label={done ? 'Mark not done' : 'Mark done'}
-                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  className="pressable hit flex h-11 w-11 items-center justify-center rounded-full transition-colors"
                   style={{
                     background: done ? 'var(--green)' : 'var(--card-2)',
                     color: done ? 'white' : 'var(--ink-2)',
@@ -296,11 +297,12 @@ export default function Dashboard() {
         {active.map((meal) => {
           const fresh = freshnessOf(meal)
           return (
-            <button
+            <div
               key={meal.id}
               onClick={() => setDetail(meal)}
-              className="pop-in pressable relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
-              style={{ borderTop: `5px solid ${fresh.color}` }}
+              {...pressableProps(() => setDetail(meal))}
+              className="pop-in pressable relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
+              style={{ borderTop: `4px solid ${fresh.color}` }}
             >
               <div className="flex w-full items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -335,11 +337,10 @@ export default function Dashboard() {
                   </p>
                 </div>
                 {/* Tick off as taken */}
-                <span
-                  role="button"
+                <button
                   aria-label={`Mark one ${meal.name} as taken`}
                   onClick={(e) => tickOff(meal, e)}
-                  className="pressable flex h-12 w-12 items-center justify-center rounded-full text-white"
+                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white"
                   style={{ background: 'var(--tint)' }}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24">
@@ -352,9 +353,9 @@ export default function Dashboard() {
                       strokeLinejoin="round"
                     />
                   </svg>
-                </span>
+                </button>
               </div>
-            </button>
+            </div>
           )
         })}
       </main>

@@ -2,6 +2,7 @@ import type { Meal } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDate, fmtNum } from '../lib/format'
+import { pressableProps } from '../lib/a11y'
 import FreshnessRing from './FreshnessRing'
 import MacroGrid from './MacroGrid'
 
@@ -41,6 +42,8 @@ export default function MealCard({
   return (
     <div
       onClick={onToggle}
+      {...pressableProps(onToggle)}
+      aria-expanded={expanded}
       className={`pop-in cursor-pointer rounded-2xl bg-card card-shadow transition-all ${
         depleted ? 'opacity-60' : ''
       }`}
