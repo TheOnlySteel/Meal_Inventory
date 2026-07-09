@@ -13,18 +13,8 @@ export const MEAL_TYPES: { key: MealType; label: string }[] = [
   { key: 'ingredient', label: 'Ingredient' },
 ]
 
-export interface Meal {
-  id: string
-  name: string
-  prep_date: string
-  shelf_life_days: number
-  storage_location: StorageLocation
-  meal_type: MealType
-  best_before: string
-  servings_per_pack: number
-  pack_quantity: number
-  initial_pack_quantity: number
-  notes: string | null
+/** The 13 per-serving nutrient columns shared by meals and recipes. */
+export interface NutrientValues {
   calories: number | null
   protein_g: number | null
   fat_g: number | null
@@ -38,6 +28,21 @@ export interface Meal {
   calcium_mg: number | null
   vit_c_mg: number | null
   vit_d_ug: number | null
+}
+
+export interface Meal extends NutrientValues {
+  id: string
+  name: string
+  prep_date: string
+  shelf_life_days: number
+  storage_location: StorageLocation
+  meal_type: MealType
+  best_before: string
+  servings_per_pack: number
+  pack_quantity: number
+  initial_pack_quantity: number
+  notes: string | null
+  recipe_id: string | null
   archived_at: string | null
   household_id: string
   created_by: string | null
@@ -48,7 +53,35 @@ export interface Meal {
 /** household_id is filled server-side by a trigger from the user's membership. */
 export type MealInsert = Omit<
   Meal,
-  'id' | 'best_before' | 'archived_at' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
+  | 'id'
+  | 'best_before'
+  | 'archived_at'
+  | 'household_id'
+  | 'recipe_id'
+  | 'created_by'
+  | 'created_at'
+  | 'updated_at'
+> & { recipe_id?: string | null }
+
+export interface Recipe extends NutrientValues {
+  id: string
+  household_id: string
+  name: string
+  /** one ingredient per line */
+  ingredients: string
+  instructions: string
+  servings_per_pack: number
+  default_storage_location: StorageLocation
+  default_shelf_life_days: number
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type RecipeInsert = Omit<
+  Recipe,
+  'id' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
 >
 
 export interface MealLogEntry {
@@ -121,7 +154,7 @@ export interface EatPackResult {
 }
 
 export interface NutrientDef {
-  key: keyof Meal
+  key: keyof NutrientValues
   label: string
   unit: string
   core: boolean

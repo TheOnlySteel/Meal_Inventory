@@ -15,6 +15,7 @@ interface Props {
   onArchive: () => void
   onRestore?: () => void
   onDelete?: () => void
+  onSaveAsRecipe?: () => void
 }
 
 /** Expandable meal card: summary row → tap → macro layer + actions. */
@@ -28,6 +29,7 @@ export default function MealCard({
   onArchive,
   onRestore,
   onDelete,
+  onSaveAsRecipe,
 }: Props) {
   const fresh = freshnessOf(meal)
   const depleted = meal.archived_at != null
@@ -125,6 +127,14 @@ export default function MealCard({
             >
               Edit
             </button>
+            {onSaveAsRecipe && meal.recipe_id == null && (
+              <button
+                onClick={onSaveAsRecipe}
+                className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[15px] font-semibold text-tint"
+              >
+                Save as recipe
+              </button>
+            )}
             {!depleted ? (
               <button
                 onClick={onArchive}

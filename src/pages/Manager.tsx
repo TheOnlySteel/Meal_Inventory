@@ -9,6 +9,9 @@ import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import MealCard from '../components/MealCard'
 import MealFormSheet from '../components/MealFormSheet'
 import HouseholdSheet from '../components/HouseholdSheet'
+import RecipeFormSheet from '../components/RecipeFormSheet'
+import { useRecipeMutations } from '../hooks/useRecipes'
+import type { Recipe, RecipeInsert } from '../lib/types'
 
 type Filter = 'active' | 'soon' | 'depleted'
 type Sort = 'urgency' | 'newest' | 'name' | 'packs'
@@ -29,6 +32,8 @@ export default function Manager() {
   const [editing, setEditing] = useState<Meal | null>(null)
   const [template, setTemplate] = useState<Meal | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
+  const { addRecipe } = useRecipeMutations()
 
   const all = useMemo(() => meals ?? [], [meals])
   const active = useMemo(() => all.filter((m) => m.archived_at == null), [all])
@@ -110,6 +115,45 @@ export default function Manager() {
     setEditing(null)
     setFormOpen(true)
     setExpandedId(null)
+  }
+
+  function handleSaveAsRecipe(meal: Meal) {
+    setRecipeTemplate({
+      meal,
+      values: {
+        name: meal.name,
+        servings_per_pack: Number(meal.servings_per_pack),
+        default_storage_location: meal.storage_location,
+        default_shelf_life_days: meal.shelf_life_days,
+        notes: meal.notes,
+        calories: meal.calories,
+        protein_g: meal.protein_g,
+        fat_g: meal.fat_g,
+        carbs_g: meal.carbs_g,
+        fibre_g: meal.fibre_g,
+        sugar_g: meal.sugar_g,
+        sat_fat_g: meal.sat_fat_g,
+        sodium_mg: meal.sodium_mg,
+        iron_mg: meal.iron_mg,
+        potassium_mg: meal.potassium_mg,
+        calcium_mg: meal.calcium_mg,
+        vit_c_mg: meal.vit_c_mg,
+        vit_d_ug: meal.vit_d_ug,
+      },
+    })
+    setExpandedId(null)
+  }
+
+  function handleRecipeSave(values: RecipeInsert) {
+    const source = recipeTemplate?.meal
+    setRecipeTemplate(null)
+    addRecipe.mutate(values, {
+      onSuccess: (recipe) => {
+        if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
+        toast(`Saved ${recipe.name} as a recipe`)
+      },
+      onError: () => toast('Save failed', { tone: 'error' }),
+    })
   }
 
   const filterChips: { key: Filter; label: string }[] = [
@@ -302,6 +346,7 @@ export default function Manager() {
               setFormOpen(true)
             }}
             onReprep={() => handleReprep(meal)}
+            onSaveAsRecipe={() => handleSaveAsRecipe(meal)}
             onArchive={() => {
               archiveMeal.mutate({ id: meal.id, archived: true })
               toast(`Archived ${meal.name}`, {
@@ -339,6 +384,14 @@ export default function Manager() {
       </button>
 
       {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
+
+      {recipeTemplate && (
+        <RecipeFormSheet
+          template={recipeTemplate.values}
+          onClose={() => setRecipeTemplate(null)}
+          onSave={handleRecipeSave}
+        />
+      )}
 
       {formOpen && (
         <MealFormSheet

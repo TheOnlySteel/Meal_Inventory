@@ -41,6 +41,26 @@ export function useShoppingMutations() {
     onSettled: invalidate,
   })
 
+  /** Bulk add (e.g. recipe ingredients); returns rows so callers can offer undo. */
+  const addItems = useMutation({
+    mutationFn: async (names: string[]): Promise<ShoppingItem[]> => {
+      const rows = names.map((name) => ({ name }))
+      const { data, error } = await supabase.from('shopping_items').insert(rows).select()
+      if (error) throw error
+      return data as ShoppingItem[]
+    },
+    onSettled: invalidate,
+  })
+
+  /** Undo helper for addItems. */
+  const removeItems = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('shopping_items').delete().in('id', ids)
+      if (error) throw error
+    },
+    onSettled: invalidate,
+  })
+
   const setChecked = useMutation({
     mutationFn: async ({ id, checked }: { id: string; checked: boolean }) => {
       const { error } = await supabase
@@ -99,5 +119,5 @@ export function useShoppingMutations() {
     onSettled: invalidate,
   })
 
-  return { addItem, setChecked, clearChecked, restoreItems, deleteItem }
+  return { addItem, addItems, removeItems, setChecked, clearChecked, restoreItems, deleteItem }
 }

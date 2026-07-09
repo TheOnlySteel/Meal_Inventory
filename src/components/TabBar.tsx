@@ -17,6 +17,14 @@ const TABS = [
     ),
   },
   {
+    to: '/recipes',
+    label: 'Recipes',
+    icon: (
+      // open book
+      <path d="M12 6.5C10 4.8 7 4.4 4.5 5.2v13.3c2.5-.8 5.5-.4 7.5 1.3 2-1.7 5-2.1 7.5-1.3V5.2C17 4.4 14 4.8 12 6.5Zm0 0v13.3" />
+    ),
+  },
+  {
     to: '/shopping',
     label: 'Shopping',
     icon: (

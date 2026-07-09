@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Manager from './pages/Manager'
 import Dashboard from './pages/Dashboard'
 import Planner from './pages/Planner'
+import Recipes from './pages/Recipes'
 import Shopping from './pages/Shopping'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
       >
         <Route path="/" element={<Planner />} />
         <Route path="/larder" element={<Manager />} />
+        <Route path="/recipes" element={<Recipes />} />
         <Route path="/planner" element={<Navigate to="/" replace />} />
         <Route path="/shopping" element={<Shopping />} />
       </Route>
