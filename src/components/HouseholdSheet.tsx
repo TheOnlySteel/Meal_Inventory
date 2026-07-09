@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useHousehold } from '../hooks/useHousehold'
 import { useMembers, useMemberMutations } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
 import MemberAvatar from './MemberAvatar'
+import Sheet from './Sheet'
 
 /** Settings sheet: household name, invite code, members, sign out. */
 export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
@@ -14,7 +14,6 @@ export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
   const { data: members } = useMembers()
   const { updateDisplayName } = useMemberMutations()
   const { toast } = useToast()
-  const qc = useQueryClient()
   const [editingName, setEditingName] = useState<string | null>(null)
 
   function saveName() {
@@ -39,12 +38,16 @@ export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="sheet-up relative z-10 flex w-full max-w-lg flex-col gap-5 rounded-t-3xl bg-elevated p-6 pb-10 float-shadow safe-b sm:rounded-3xl">
+    <Sheet
+      onClose={onClose}
+      ariaLabel="Household settings"
+      panelClassName="flex w-full max-w-lg flex-col gap-5 rounded-t-3xl bg-elevated p-6 pb-10 float-shadow safe-b sm:rounded-3xl"
+    >
+      {(close) => (
+      <>
         <div className="flex items-center justify-between">
           <h2 className="text-[20px] font-bold tracking-tight">{household?.name ?? 'Household'}</h2>
-          <button onClick={onClose} className="pressable text-[16px] font-semibold text-tint">
+          <button onClick={close} className="pressable text-[16px] font-semibold text-tint">
             Done
           </button>
         </div>
@@ -116,17 +119,15 @@ export default function HouseholdSheet({ onClose }: { onClose: () => void }) {
             <p className="truncate text-[15px] font-semibold">{session?.user.email}</p>
           </div>
           <button
-            onClick={() => {
-              qc.clear()
-              supabase.auth.signOut()
-            }}
+            onClick={() => supabase.auth.signOut()}
             className="pressable shrink-0 text-[14px] font-semibold"
             style={{ color: 'var(--red)' }}
           >
             Sign out
           </button>
         </div>
-      </div>
-    </div>
+      </>
+      )}
+    </Sheet>
   )
 }

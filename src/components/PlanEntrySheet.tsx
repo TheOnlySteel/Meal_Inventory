@@ -6,6 +6,7 @@ import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import type { PlanSlot } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
+import Sheet from './Sheet'
 
 interface Props {
   date: Date
@@ -30,7 +31,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
     return q ? active.filter((m) => m.name.toLowerCase().includes(q)) : active
   }, [meals, search])
 
-  function save(entry: { meal_id?: string; title?: string }) {
+  function save(entry: { meal_id?: string; title?: string }, close: () => void) {
     addEntry.mutate(
       {
         plan_date: format(date, 'yyyy-MM-dd'),
@@ -42,15 +43,19 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
         onError: () => toast('Could not save', { tone: 'error' }),
       },
     )
-    onClose()
+    close()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="sheet-up relative z-10 flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl">
+    <Sheet
+      onClose={onClose}
+      ariaLabel="Plan something"
+      panelClassName="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
+    >
+      {(close) => (
+      <div className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button onClick={onClose} className="pressable text-[16px] text-tint">
+          <button onClick={close} className="pressable text-[16px] text-tint">
             Cancel
           </button>
           <h2 className="text-[16px] font-semibold">{format(date, 'EEE, MMM d')}</h2>
@@ -111,7 +116,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
                 return (
                   <button
                     key={meal.id}
-                    onClick={() => save({ meal_id: meal.id })}
+                    onClick={() => save({ meal_id: meal.id }, close)}
                     className="pressable flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-left card-shadow"
                   >
                     <span
@@ -135,7 +140,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              if (title.trim()) save({ title: title.trim() })
+              if (title.trim()) save({ title: title.trim() }, close)
             }}
             className="flex flex-col gap-3 px-5 pb-8 safe-b"
           >
@@ -169,6 +174,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
           </form>
         )}
       </div>
-    </div>
+      )}
+    </Sheet>
   )
 }

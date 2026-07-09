@@ -5,8 +5,8 @@ import { useChores, useChoreMutations } from '../hooks/useChores'
 import { useMembers } from '../hooks/useMembers'
 import { useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
+import { useToday } from '../hooks/useToday'
 import { groupChores } from '../lib/chores'
-import { todayISO } from '../lib/format'
 import ChoreRow from '../components/ChoreRow'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum } from '../lib/format'
@@ -24,14 +24,15 @@ export default function Planner() {
   const { completeChore, uncompleteChore } = useChoreMutations()
   const { addItem } = useShoppingMutations()
   const { toast } = useToast()
+  const todayIso = useToday()
   const [selected, setSelected] = useState(() => new Date())
   const [sheetOpen, setSheetOpen] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
 
   const days = useMemo(() => {
-    const { start } = planRange()
+    const { start } = planRange(todayIso)
     return Array.from({ length: DAY_COUNT }, (_, i) => addDays(start, i))
-  }, [])
+  }, [todayIso])
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlanEntry[]>()
@@ -54,9 +55,9 @@ export default function Planner() {
 
   // Overdue + due-today chores for the home card (today only)
   const todayChores = useMemo(() => {
-    const g = groupChores(chores ?? [], todayISO())
+    const g = groupChores(chores ?? [], todayIso)
     return [...g.overdue, ...g.today]
-  }, [chores])
+  }, [chores, todayIso])
 
   function toggleChore(chore: (typeof todayChores)[number]) {
     if (chore.completed_at != null) {
@@ -70,12 +71,17 @@ export default function Planner() {
     })
   }
 
-  // Center today's pill on first render
+  // Follow the calendar: when the day rolls over, jump selection back to today
+  useEffect(() => {
+    setSelected(parseISO(todayIso))
+  }, [todayIso])
+
+  // Center today's pill on mount and at each rollover
   useEffect(() => {
     stripRef.current
       ?.querySelector('[data-today="true"]')
       ?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [])
+  }, [todayIso])
 
   function displayName(e: PlanEntry) {
     return e.meals?.name ?? e.title ?? 'Untitled'
@@ -117,11 +123,15 @@ export default function Planner() {
           </button>
         </div>
         {/* Day strip */}
-        <div ref={stripRef} className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pt-1 pb-3">
+        <div
+          ref={stripRef}
+          className="no-scrollbar flex snap-x snap-proximity scroll-pl-4 gap-1.5 overflow-x-auto px-4 pt-1 pb-3"
+        >
           {days.map((day) => {
             const iso = format(day, 'yyyy-MM-dd')
             const active = isSameDay(day, selected)
             const today = isToday(day)
+            const past = iso < todayIso
             const dayList = byDay.get(iso) ?? []
             const hasOpen = dayList.some((e) => e.completed_at == null)
             const hasAny = dayList.length > 0
@@ -130,18 +140,22 @@ export default function Planner() {
                 key={iso}
                 data-today={today}
                 onClick={() => setSelected(day)}
-                className={`pressable flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors ${
+                className={`pressable flex w-12 shrink-0 snap-start flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors ${
                   active ? 'bg-tint text-white' : 'bg-card2 text-ink'
                 }`}
               >
                 <span
                   className={`text-[10px] font-semibold uppercase ${
-                    active ? 'text-white/80' : today ? 'text-tint' : 'text-ink2'
+                    active ? 'text-white/80' : today ? 'text-tint' : past ? 'text-ink3' : 'text-ink2'
                   }`}
                 >
                   {today ? 'Today' : format(day, 'EEE')}
                 </span>
-                <span className="text-[17px] leading-none font-bold tabular-nums">
+                <span
+                  className={`text-[17px] leading-none font-bold tabular-nums ${
+                    past && !active ? 'text-ink3' : ''
+                  }`}
+                >
                   {format(day, 'd')}
                 </span>
                 <span
@@ -165,7 +179,7 @@ export default function Planner() {
       </header>
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-28">
-        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-20 w-full" />)}
+        {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-16 w-full" />)}
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>
@@ -211,7 +225,7 @@ export default function Planner() {
                           done ? uncompleteEntry.mutate(entry.id) : onComplete(entry)
                         }
                         aria-label={done ? 'Mark not done' : 'Mark done'}
-                        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+                        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
                         style={{
                           borderColor: done ? 'var(--green)' : 'var(--sep)',
                           background: done ? 'var(--green)' : 'transparent',
@@ -261,7 +275,7 @@ export default function Planner() {
                       <button
                         onClick={() => deleteEntry.mutate(entry.id)}
                         aria-label="Remove from plan"
-                        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
+                        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24">
                           <path

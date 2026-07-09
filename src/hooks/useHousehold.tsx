@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
@@ -42,17 +42,16 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     staleTime: 5 * 60_000,
   })
 
-  return (
-    <HouseholdContext.Provider
-      value={{
-        household: data?.household ?? null,
-        role: data?.role ?? null,
-        loading: isLoading,
-      }}
-    >
-      {children}
-    </HouseholdContext.Provider>
+  const value = useMemo(
+    () => ({
+      household: data?.household ?? null,
+      role: data?.role ?? null,
+      loading: isLoading,
+    }),
+    [data, isLoading],
   )
+
+  return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>
 }
 
 export function useHousehold() {

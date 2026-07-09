@@ -175,9 +175,9 @@ export default function Manager() {
             <button
               onClick={() => setSettingsOpen(true)}
               aria-label="Household settings"
-              className="pressable flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
+              className="pressable hit flex h-8 w-8 items-center justify-center rounded-full bg-card2 text-ink2"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="3.5" />
                 <path d="M5 19.5c1.3-3 4-4.5 7-4.5s5.7 1.5 7 4.5" />
               </svg>
@@ -248,7 +248,7 @@ export default function Manager() {
             </select>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto pr-2">
               {(
                 [{ key: 'all' as const, label: 'All', icon: '' }, ...STORAGE_LOCATIONS]
               ).map((l) => (
@@ -305,7 +305,7 @@ export default function Manager() {
       {/* Meal list */}
       <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-40">
         {isLoading &&
-          [1, 2, 3].map((i) => <div key={i} className="skeleton h-24 w-full" />)}
+          [1, 2, 3].map((i) => <div key={i} className="skeleton h-[92px] w-full" />)}
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>
@@ -371,7 +371,7 @@ export default function Manager() {
           setFormOpen(true)
         }}
         aria-label="New meal"
-        className="pressable fixed right-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow"
+        className="pressable fixed right-5 bottom-[var(--bottom-clearance)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-tint text-white float-shadow"
       >
         <svg width="24" height="24" viewBox="0 0 24 24">
           <path

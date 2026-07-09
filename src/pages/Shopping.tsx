@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import type { ShoppingItem } from '../lib/types'
+import { pressableProps } from '../lib/a11y'
 
 export default function Shopping() {
   const { data: items, isLoading, error } = useShopping()
@@ -134,6 +135,8 @@ function Row({
   return (
     <div
       onClick={onToggle}
+      {...pressableProps(onToggle)}
+      aria-label={`${item.name} — ${checked ? 'checked, tap to uncheck' : 'tap to check off'}`}
       className={`pop-in pressable flex cursor-pointer items-center gap-3 rounded-2xl bg-card px-4 py-3 card-shadow ${
         checked ? 'opacity-60' : ''
       }`}
@@ -168,7 +171,7 @@ function Row({
           onDelete()
         }}
         aria-label={`Delete ${item.name}`}
-        className="pressable flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
+        className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
       >
         <svg width="14" height="14" viewBox="0 0 24 24">
           <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />

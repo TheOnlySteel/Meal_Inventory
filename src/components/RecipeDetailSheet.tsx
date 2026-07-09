@@ -2,6 +2,7 @@ import type { Recipe, StorageLocation } from '../lib/types'
 import { STORAGE_LOCATIONS } from '../lib/types'
 import { ingredientLines } from '../hooks/useRecipes'
 import MacroGrid from './MacroGrid'
+import Sheet from './Sheet'
 
 interface Props {
   recipe: Recipe
@@ -27,11 +28,15 @@ export default function RecipeDetailSheet({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="sheet-up relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl">
+    <Sheet
+      onClose={onClose}
+      ariaLabel={recipe.name}
+      panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
+    >
+      {(close) => (
+      <div className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button onClick={onClose} className="pressable text-[16px] text-tint">
+          <button onClick={close} className="pressable text-[16px] text-tint">
             Close
           </button>
           <div className="flex items-center gap-4">
@@ -121,6 +126,7 @@ export default function RecipeDetailSheet({
           </section>
         </div>
       </div>
-    </div>
+      )}
+    </Sheet>
   )
 }

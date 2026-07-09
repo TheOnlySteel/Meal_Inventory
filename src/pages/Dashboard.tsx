@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useMeals, useMealMutations, useRealtimeSync } from '../hooks/useMeals'
 import { usePlan, usePlanMutations } from '../hooks/usePlanner'
 import { useChores, useChoreMutations } from '../hooks/useChores'
 import { useMembers, memberName } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
+import { useToday } from '../hooks/useToday'
 import { freshnessOf } from '../lib/freshness'
 import { groupChores, dueLabel } from '../lib/chores'
-import { fmtDateFull, fmtNum, todayISO } from '../lib/format'
+import { fmtDateFull, fmtNum } from '../lib/format'
+import { pressableProps } from '../lib/a11y'
 import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
+import Sheet from '../components/Sheet'
 
 function useClock() {
   const [now, setNow] = useState(new Date())
@@ -53,6 +56,7 @@ export default function Dashboard() {
   useRealtimeSync()
   useWakeLock()
   const now = useClock()
+  const todayIso = useToday()
   const { data: meals, isLoading } = useMeals()
   const { data: plan } = usePlan()
   const { data: chores } = useChores()
@@ -69,14 +73,16 @@ export default function Dashboard() {
     [meals],
   )
 
+  // Evaluated against the ticking date so the badge stays honest as days pass
   const stats = useMemo(() => {
+    const today = parseISO(todayIso)
     const packs = active.reduce((s, m) => s + m.pack_quantity, 0)
     const urgent = active.filter((m) => {
-      const k = freshnessOf(m).key
+      const k = freshnessOf(m, today).key
       return k === 'expired' || k === 'now'
     }).length
     return { meals: active.length, packs, urgent }
-  }, [active])
+  }, [active, todayIso])
 
   // Auto-dismiss the drill-down after 30s idle so the kiosk returns to the grid
   useEffect(() => {
@@ -100,11 +106,10 @@ export default function Dashboard() {
 
   // Overdue + due-today chores, plus one-offs finished today (shown ticked)
   const todayChores = useMemo(() => {
-    const today = todayISO()
-    const g = groupChores(chores ?? [], today)
-    const doneToday = g.done.filter((c) => (c.completed_at ?? '').slice(0, 10) === today)
+    const g = groupChores(chores ?? [], todayIso)
+    const doneToday = g.done.filter((c) => (c.completed_at ?? '').slice(0, 10) === todayIso)
     return [...g.overdue, ...g.today, ...doneToday]
-  }, [chores])
+  }, [chores, todayIso])
 
   function tickChore(chore: Chore) {
     if (chore.completed_at != null) {
@@ -147,7 +152,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
+    <div className="flex h-dvh flex-col overflow-hidden bg-canvas safe-t">
       {/* Header */}
       <header className="flex items-end justify-between px-8 pt-6 pb-4">
         <div>
@@ -208,7 +213,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => tickPlan(entry)}
                   aria-label={done ? 'Mark not done' : 'Mark done'}
-                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  className="pressable hit flex h-11 w-11 items-center justify-center rounded-full transition-colors"
                   style={{
                     background: done ? 'var(--green)' : 'var(--card-2)',
                     color: done ? 'white' : 'var(--ink-2)',
@@ -231,7 +236,7 @@ export default function Dashboard() {
 
           {todayChores.map((chore) => {
             const done = chore.completed_at != null
-            const overdue = !done && chore.due_date != null && chore.due_date < todayISO()
+            const overdue = !done && chore.due_date != null && chore.due_date < todayIso
             return (
               <div
                 key={chore.id}
@@ -245,7 +250,7 @@ export default function Dashboard() {
                     style={{ color: overdue ? 'var(--orange)' : 'var(--ink-2)' }}
                   >
                     🧹 {chore.assigned_to ? memberName(members, chore.assigned_to) : 'Anyone'}
-                    {overdue ? ` · ${dueLabel(chore.due_date, todayISO())}` : ''}
+                    {overdue ? ` · ${dueLabel(chore.due_date, todayIso)}` : ''}
                   </p>
                   <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
                     {chore.title}
@@ -254,7 +259,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => tickChore(chore)}
                   aria-label={done ? 'Mark not done' : 'Mark done'}
-                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  className="pressable hit flex h-11 w-11 items-center justify-center rounded-full transition-colors"
                   style={{
                     background: done ? 'var(--green)' : 'var(--card-2)',
                     color: done ? 'white' : 'var(--ink-2)',
@@ -278,9 +283,9 @@ export default function Dashboard() {
       )}
 
       {/* Grid */}
-      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 xl:grid-cols-4">
+      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 lg:grid-cols-4">
         {isLoading &&
-          [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-36" />)}
+          [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-40" />)}
 
         {!isLoading && active.length === 0 && (
           <div className="col-span-full flex flex-col items-center gap-3 py-24">
@@ -292,22 +297,23 @@ export default function Dashboard() {
         {active.map((meal) => {
           const fresh = freshnessOf(meal)
           return (
-            <button
+            <div
               key={meal.id}
               onClick={() => setDetail(meal)}
-              className="pop-in pressable relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
-              style={{ borderTop: `5px solid ${fresh.color}` }}
+              {...pressableProps(() => setDetail(meal))}
+              className="pop-in pressable relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
+              style={{ borderTop: `4px solid ${fresh.color}` }}
             >
               <div className="flex w-full items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-[19px] leading-snug font-semibold">{meal.name}</h3>
                   <p
                     className="mt-0.5 text-[14px] font-medium"
-                    style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.color }}
+                    style={{ color: fresh.key === 'fresh' ? 'var(--ink-2)' : fresh.textColor }}
                   >
                     {fresh.label}
                     <span className="text-ink3"> · </span>
-                    <span className="text-ink2">
+                    <span className="text-ink2 whitespace-nowrap">
                       {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.icon}{' '}
                       {STORAGE_LOCATIONS.find((l) => l.key === meal.storage_location)?.label}
                     </span>
@@ -331,11 +337,10 @@ export default function Dashboard() {
                   </p>
                 </div>
                 {/* Tick off as taken */}
-                <span
-                  role="button"
+                <button
                   aria-label={`Mark one ${meal.name} as taken`}
                   onClick={(e) => tickOff(meal, e)}
-                  className="pressable flex h-12 w-12 items-center justify-center rounded-full text-white"
+                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white"
                   style={{ background: 'var(--tint)' }}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24">
@@ -348,27 +353,25 @@ export default function Dashboard() {
                       strokeLinejoin="round"
                     />
                   </svg>
-                </span>
+                </button>
               </div>
-            </button>
+            </div>
           )
         })}
       </main>
 
       {/* Drill-down overlay */}
       {liveDetail && (
-        <div
-          className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-10"
-          onClick={() => setDetail(null)}
+        <Sheet
+          onClose={() => setDetail(null)}
+          variant="center"
+          ariaLabel={liveDetail.name}
+          panelClassName="mx-10 flex max-h-[90dvh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-3xl bg-elevated p-8 float-shadow"
         >
-          <div
-            className="pop-in flex max-h-full w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-3xl bg-elevated p-8 float-shadow"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {(() => {
-              const fresh = freshnessOf(liveDetail)
-              return (
-                <>
+          {(close) => {
+            const fresh = freshnessOf(liveDetail)
+            return (
+              <>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-[32px] leading-tight font-bold tracking-tight">
@@ -376,7 +379,7 @@ export default function Dashboard() {
                       </h2>
                       <p
                         className="mt-1 text-[17px] font-semibold"
-                        style={{ color: fresh.color }}
+                        style={{ color: fresh.textColor }}
                       >
                         {fresh.label}
                       </p>
@@ -407,7 +410,7 @@ export default function Dashboard() {
                       ✓&ensp;Take one pack
                     </button>
                     <button
-                      onClick={() => setDetail(null)}
+                      onClick={close}
                       className="pressable rounded-2xl bg-card2 px-8 py-4 text-[17px] font-semibold"
                     >
                       Close
@@ -415,9 +418,8 @@ export default function Dashboard() {
                   </div>
                 </>
               )
-            })()}
-          </div>
-        </div>
+          }}
+        </Sheet>
       )}
     </div>
   )
