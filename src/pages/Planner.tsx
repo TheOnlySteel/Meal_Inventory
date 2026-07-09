@@ -76,11 +76,14 @@ export default function Planner() {
     setSelected(parseISO(todayIso))
   }, [todayIso])
 
-  // Center today's pill on mount and at each rollover
+  // Center today's pill on mount and at each rollover. Scroll the strip
+  // directly — scrollIntoView also scrolls the document, which left the whole
+  // PWA shifted upward at launch on iOS.
   useEffect(() => {
-    stripRef.current
-      ?.querySelector('[data-today="true"]')
-      ?.scrollIntoView({ inline: 'center', block: 'nearest' })
+    const strip = stripRef.current
+    const pill = strip?.querySelector<HTMLElement>('[data-today="true"]')
+    if (!strip || !pill) return
+    strip.scrollLeft = pill.offsetLeft - (strip.clientWidth - pill.offsetWidth) / 2
   }, [todayIso])
 
   function displayName(e: PlanEntry) {
@@ -125,7 +128,7 @@ export default function Planner() {
         {/* Day strip */}
         <div
           ref={stripRef}
-          className="no-scrollbar flex snap-x snap-proximity scroll-pl-4 gap-1.5 overflow-x-auto px-4 pt-1 pb-3"
+          className="no-scrollbar relative flex snap-x snap-proximity scroll-pl-4 gap-1.5 overflow-x-auto px-4 pt-1 pb-3"
         >
           {days.map((day) => {
             const iso = format(day, 'yyyy-MM-dd')
