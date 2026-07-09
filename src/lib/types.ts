@@ -143,6 +143,39 @@ export type PlanEntryInsert = {
   notes?: string | null
 }
 
+export interface Chore {
+  id: string
+  household_id: string
+  title: string
+  notes: string | null
+  assigned_to: string | null
+  due_date: string | null
+  /** null = one-off */
+  recur_interval_days: number | null
+  completed_at: string | null
+  last_completed_at: string | null
+  prev_due_date: string | null
+  prev_last_completed_at: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type ChoreInsert = {
+  title: string
+  notes?: string | null
+  assigned_to?: string | null
+  due_date?: string | null
+  recur_interval_days?: number | null
+}
+
+export const RECURRENCE_OPTIONS: { label: string; days: number | null }[] = [
+  { label: 'One-off', days: null },
+  { label: 'Daily', days: 1 },
+  { label: 'Weekly', days: 7 },
+  { label: 'Every 2 weeks', days: 14 },
+  { label: 'Monthly', days: 30 },
+]
+
 export interface ShoppingItem {
   id: string
   household_id: string

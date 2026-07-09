@@ -25,6 +25,14 @@ const TABS = [
     ),
   },
   {
+    to: '/chores',
+    label: 'Chores',
+    icon: (
+      // checklist
+      <path d="M4 6.5 5.6 8 8.5 5M4 12.5 5.6 14 8.5 11M4 18.5 5.6 20 8.5 17M12 6.5h8M12 12.5h8M12 18.5h8" />
+    ),
+  },
+  {
     to: '/shopping',
     label: 'Shopping',
     icon: (

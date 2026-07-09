@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useMeals, useMealMutations, useRealtimeSync } from '../hooks/useMeals'
 import { usePlan, usePlanMutations } from '../hooks/usePlanner'
+import { useChores, useChoreMutations } from '../hooks/useChores'
+import { useMembers, memberName } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
-import { fmtDateFull, fmtNum } from '../lib/format'
-import type { Meal, PlanEntry } from '../lib/types'
+import { groupChores, dueLabel } from '../lib/chores'
+import { fmtDateFull, fmtNum, todayISO } from '../lib/format'
+import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
@@ -52,8 +55,11 @@ export default function Dashboard() {
   const now = useClock()
   const { data: meals, isLoading } = useMeals()
   const { data: plan } = usePlan()
+  const { data: chores } = useChores()
+  const { data: members } = useMembers()
   const { eatPack, undoEat } = useMealMutations()
   const { completeEntry, uncompleteEntry } = usePlanMutations()
+  const { completeChore, uncompleteChore } = useChoreMutations()
   const { toast } = useToast()
   const [detail, setDetail] = useState<Meal | null>(null)
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -91,6 +97,26 @@ export default function Dashboard() {
       .filter((e) => e.plan_date === iso)
       .sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0))
   }, [plan, now])
+
+  // Overdue + due-today chores, plus one-offs finished today (shown ticked)
+  const todayChores = useMemo(() => {
+    const today = todayISO()
+    const g = groupChores(chores ?? [], today)
+    const doneToday = g.done.filter((c) => (c.completed_at ?? '').slice(0, 10) === today)
+    return [...g.overdue, ...g.today, ...doneToday]
+  }, [chores])
+
+  function tickChore(chore: Chore) {
+    if (chore.completed_at != null) {
+      uncompleteChore.mutate(chore.id)
+      return
+    }
+    completeChore.mutate(chore, {
+      onSuccess: () =>
+        toast(`Done · ${chore.title}`, { undo: () => uncompleteChore.mutate(chore.id) }),
+      onError: () => toast('Could not update', { tone: 'error' }),
+    })
+  }
 
   function tickPlan(entry: PlanEntry) {
     if (entry.completed_at != null) {
@@ -158,8 +184,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Today's plan strip */}
-      {todayPlan.length > 0 && (
+      {/* Today's plan + chores strip */}
+      {todayPlan.length + todayChores.length > 0 && (
         <div className="no-scrollbar flex shrink-0 gap-3 overflow-x-auto px-8 pb-4">
           {todayPlan.map((entry) => {
             const done = entry.completed_at != null
@@ -181,6 +207,52 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={() => tickPlan(entry)}
+                  aria-label={done ? 'Mark not done' : 'Mark done'}
+                  className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  style={{
+                    background: done ? 'var(--green)' : 'var(--card-2)',
+                    color: done ? 'white' : 'var(--ink-2)',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path
+                      d="M5 12.5 10 17.5 19 7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
+
+          {todayChores.map((chore) => {
+            const done = chore.completed_at != null
+            const overdue = !done && chore.due_date != null && chore.due_date < todayISO()
+            return (
+              <div
+                key={chore.id}
+                className={`pop-in flex shrink-0 items-center gap-3 rounded-2xl bg-card py-2.5 pr-2.5 pl-4 card-shadow ${
+                  done ? 'opacity-55' : ''
+                }`}
+              >
+                <div>
+                  <p
+                    className="text-[11px] font-semibold tracking-wide uppercase"
+                    style={{ color: overdue ? 'var(--orange)' : 'var(--ink-2)' }}
+                  >
+                    🧹 {chore.assigned_to ? memberName(members, chore.assigned_to) : 'Anyone'}
+                    {overdue ? ` · ${dueLabel(chore.due_date, todayISO())}` : ''}
+                  </p>
+                  <p className={`text-[15px] font-semibold ${done ? 'line-through' : ''}`}>
+                    {chore.title}
+                  </p>
+                </div>
+                <button
+                  onClick={() => tickChore(chore)}
                   aria-label={done ? 'Mark not done' : 'Mark done'}
                   className="pressable flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                   style={{

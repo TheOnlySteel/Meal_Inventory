@@ -8,6 +8,7 @@ import Manager from './pages/Manager'
 import Dashboard from './pages/Dashboard'
 import Planner from './pages/Planner'
 import Recipes from './pages/Recipes'
+import Chores from './pages/Chores'
 import Shopping from './pages/Shopping'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/" element={<Planner />} />
         <Route path="/larder" element={<Manager />} />
         <Route path="/recipes" element={<Recipes />} />
+        <Route path="/chores" element={<Chores />} />
         <Route path="/planner" element={<Navigate to="/" replace />} />
         <Route path="/shopping" element={<Shopping />} />
       </Route>
