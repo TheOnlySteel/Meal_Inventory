@@ -6,6 +6,7 @@ import { CORE_NUTRIENTS, EXTENDED_NUTRIENTS, MEAL_TYPES, STORAGE_LOCATIONS } fro
 import { fmtDateFull, todayISO } from '../lib/format'
 import { DEFAULT_LIFE, daysFromLife, lifeFromDays, usesWeeks } from '../lib/shelfLife'
 import NutrientFields from './NutrientFields'
+import Sheet from './Sheet'
 
 interface Props {
   /** Existing meal → edit mode; template (from re-prep/autocomplete) prefills a new meal. */
@@ -145,14 +146,15 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
   const labelCls = 'text-[13px] font-medium text-ink2'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <form
-        onSubmit={submit}
-        className="sheet-up relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
-      >
+    <Sheet
+      onClose={onClose}
+      ariaLabel={editing ? 'Edit meal' : 'New meal'}
+      panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
+    >
+      {(close) => (
+      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button type="button" onClick={onClose} className="pressable text-[16px] text-tint">
+          <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
           </button>
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit meal' : 'New meal'}</h2>
@@ -172,21 +174,25 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
               className={inputCls}
               value={name}
               required
-              autoFocus={!editing}
+              data-autofocus={!editing || undefined}
               placeholder="e.g. Chicken burrito bowls"
               onChange={(e) => {
                 setName(e.target.value)
                 setShowSuggestions(true)
               }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onBlur={() => setShowSuggestions(false)}
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div className="fade-in absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-xl bg-elevated float-shadow">
+              <div
+                className="fade-in absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-xl bg-elevated float-shadow"
+                // keep the input focused so onBlur doesn't race the tap
+                onPointerDown={(e) => e.preventDefault()}
+              >
                 {suggestions.map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    onMouseDown={() => applyTemplate(m)}
+                    onClick={() => applyTemplate(m)}
                     className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[15px] transition-colors hover:bg-card2"
                   >
                     <span className="truncate font-medium">{m.name}</span>
@@ -322,6 +328,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
           </label>
         </div>
       </form>
-    </div>
+      )}
+    </Sheet>
   )
 }

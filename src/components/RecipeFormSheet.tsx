@@ -4,6 +4,7 @@ import type { NutrientValues, Recipe, RecipeInsert, StorageLocation } from '../l
 import { NUTRIENTS, STORAGE_LOCATIONS } from '../lib/types'
 import { DEFAULT_LIFE, daysFromLife, lifeFromDays, usesWeeks } from '../lib/shelfLife'
 import NutrientFields from './NutrientFields'
+import Sheet from './Sheet'
 
 interface Props {
   editing?: Recipe | null
@@ -96,14 +97,15 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
   const labelCls = 'text-[13px] font-medium text-ink2'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <form
-        onSubmit={submit}
-        className="sheet-up relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
-      >
+    <Sheet
+      onClose={onClose}
+      ariaLabel={editing ? 'Edit recipe' : 'New recipe'}
+      panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
+    >
+      {(close) => (
+      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button type="button" onClick={onClose} className="pressable text-[16px] text-tint">
+          <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
           </button>
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit recipe' : 'New recipe'}</h2>
@@ -123,7 +125,7 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
               className={inputCls}
               value={name}
               required
-              autoFocus={!editing && !template}
+              data-autofocus={(!editing && !template) || undefined}
               placeholder="e.g. Cinnamon buns"
               onChange={(e) => setName(e.target.value)}
             />
@@ -217,6 +219,7 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
           </label>
         </div>
       </form>
-    </div>
+      )}
+    </Sheet>
   )
 }

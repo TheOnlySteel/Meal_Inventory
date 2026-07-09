@@ -14,6 +14,7 @@ import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
 import MacroGrid from '../components/MacroGrid'
+import Sheet from '../components/Sheet'
 
 function useClock() {
   const [now, setNow] = useState(new Date())
@@ -360,18 +361,16 @@ export default function Dashboard() {
 
       {/* Drill-down overlay */}
       {liveDetail && (
-        <div
-          className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-10"
-          onClick={() => setDetail(null)}
+        <Sheet
+          onClose={() => setDetail(null)}
+          variant="center"
+          ariaLabel={liveDetail.name}
+          panelClassName="mx-10 flex max-h-[90dvh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-3xl bg-elevated p-8 float-shadow"
         >
-          <div
-            className="pop-in flex max-h-full w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-3xl bg-elevated p-8 float-shadow"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {(() => {
-              const fresh = freshnessOf(liveDetail)
-              return (
-                <>
+          {(close) => {
+            const fresh = freshnessOf(liveDetail)
+            return (
+              <>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-[32px] leading-tight font-bold tracking-tight">
@@ -410,7 +409,7 @@ export default function Dashboard() {
                       ✓&ensp;Take one pack
                     </button>
                     <button
-                      onClick={() => setDetail(null)}
+                      onClick={close}
                       className="pressable rounded-2xl bg-card2 px-8 py-4 text-[17px] font-semibold"
                     >
                       Close
@@ -418,9 +417,8 @@ export default function Dashboard() {
                   </div>
                 </>
               )
-            })()}
-          </div>
-        </div>
+          }}
+        </Sheet>
       )}
     </div>
   )

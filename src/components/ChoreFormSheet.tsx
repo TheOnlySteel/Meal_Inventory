@@ -5,6 +5,7 @@ import { RECURRENCE_OPTIONS } from '../lib/types'
 import { useMembers } from '../hooks/useMembers'
 import { useAuth } from '../hooks/useAuth'
 import MemberAvatar from './MemberAvatar'
+import Sheet from './Sheet'
 
 interface Props {
   editing?: Chore | null
@@ -45,14 +46,15 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
     }`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <form
-        onSubmit={submit}
-        className="sheet-up relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
-      >
+    <Sheet
+      onClose={onClose}
+      ariaLabel={editing ? 'Edit chore' : 'New chore'}
+      panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
+    >
+      {(close) => (
+      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button type="button" onClick={onClose} className="pressable text-[16px] text-tint">
+          <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
           </button>
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit chore' : 'New chore'}</h2>
@@ -72,7 +74,7 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
               className={inputCls}
               value={title}
               required
-              autoFocus={!editing}
+              data-autofocus={!editing || undefined}
               placeholder="e.g. Water the plants"
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -160,6 +162,7 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
           )}
         </div>
       </form>
-    </div>
+      )}
+    </Sheet>
   )
 }
