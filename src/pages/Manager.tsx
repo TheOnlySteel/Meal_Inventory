@@ -304,7 +304,7 @@ export default function Manager() {
       )}
 
       {/* Meal list */}
-      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-40">
+      <main className="flex flex-1 flex-col gap-3 px-4 py-4 pb-[calc(var(--bottom-clearance)+4.5rem)]">
         {isLoading &&
           [1, 2, 3].map((i) => <div key={i} className="skeleton h-[92px] w-full" />)}
 

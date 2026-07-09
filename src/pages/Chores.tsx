@@ -83,7 +83,7 @@ export default function Chores() {
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-28">
+      <main className="flex flex-1 flex-col gap-4 px-4 py-4 pb-[calc(var(--bottom-clearance)+4.5rem)]">
         {isLoading && [1, 2, 3].map((i) => <div key={i} className="skeleton h-16 w-full" />)}
 
         {error && (
