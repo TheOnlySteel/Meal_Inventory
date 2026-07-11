@@ -18,6 +18,7 @@ export function useChores() {
       const { data, error } = await supabase
         .from('chores')
         .select('*')
+        .eq('household_id', hid!)
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -31,14 +32,16 @@ export function useChores() {
 export function useChoreMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = choresKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = choresKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: CHORES_KEY })
   const patch = (id: string, p: Partial<Chore>) =>
     qc.setQueryData<Chore[]>(key, (old) => old?.map((c) => (c.id === id ? { ...c, ...p } : c)))
 
   const addChore = useMutation({
     mutationFn: async (chore: ChoreInsert) => {
-      const { error } = await supabase.from('chores').insert(chore)
+      if (!hid) throw new Error('No household')
+      const { error } = await supabase.from('chores').insert({ ...chore, household_id: hid })
       if (error) throw error
     },
     onSettled: invalidate,

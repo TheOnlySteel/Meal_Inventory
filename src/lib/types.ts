@@ -52,7 +52,7 @@ export interface Meal extends NutrientValues {
   updated_at: string
 }
 
-/** household_id is filled server-side by a trigger from the user's membership. */
+/** household_id is injected by the mutation hooks from the active household. */
 export type MealInsert = Omit<
   Meal,
   | 'id'
@@ -63,7 +63,7 @@ export type MealInsert = Omit<
   | 'created_by'
   | 'created_at'
   | 'updated_at'
-> & { recipe_id?: string | null }
+> & { recipe_id?: string | null; household_id?: string }
 
 export interface Recipe extends NutrientValues {
   id: string
@@ -84,7 +84,7 @@ export interface Recipe extends NutrientValues {
 export type RecipeInsert = Omit<
   Recipe,
   'id' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
->
+> & { household_id?: string }
 
 export interface MealLogEntry {
   id: string
@@ -143,6 +143,7 @@ export type PlanEntryInsert = {
   title?: string
   servings?: number
   notes?: string | null
+  household_id?: string
 }
 
 export interface Chore {
@@ -168,6 +169,7 @@ export type ChoreInsert = {
   assigned_to?: string | null
   due_date?: string | null
   recur_interval_days?: number | null
+  household_id?: string
 }
 
 export const RECURRENCE_OPTIONS: { label: string; days: number | null }[] = [

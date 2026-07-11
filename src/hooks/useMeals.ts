@@ -7,7 +7,8 @@ import { urgencySort } from '../lib/freshness'
 import { useHousehold } from './useHousehold'
 
 // Keys carry the household id so caches can't bleed across a create/join
-// switch; RLS does the actual scoping server-side.
+// switch. Queries and inserts also pass household_id explicitly so reads and
+// writes stay pinned to the active household (RLS still enforces membership).
 const MEALS_KEY = ['meals']
 const LOG_KEY = ['meal_log']
 export const mealsKey = (hid: string | null) => [...MEALS_KEY, hid]
@@ -20,7 +21,7 @@ export function useMeals() {
     queryKey: mealsKey(hid),
     enabled: !!hid,
     queryFn: async (): Promise<Meal[]> => {
-      const { data, error } = await supabase.from('meals').select('*')
+      const { data, error } = await supabase.from('meals').select('*').eq('household_id', hid!)
       if (error) throw error
       return (data as Meal[]).sort(urgencySort)
     },
@@ -41,6 +42,7 @@ export function useTodayLog() {
       const { data, error } = await supabase
         .from('meal_log')
         .select('*, meals(*)')
+        .eq('household_id', hid!)
         .gte('logged_at', since)
         .order('logged_at', { ascending: false })
       if (error) throw error
@@ -100,7 +102,8 @@ function patchMealCache(
 export function useMealMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = mealsKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = mealsKey(hid)
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: MEALS_KEY })
     qc.invalidateQueries({ queryKey: LOG_KEY })
@@ -108,7 +111,12 @@ export function useMealMutations() {
 
   const addMeal = useMutation({
     mutationFn: async (meal: MealInsert) => {
-      const { data, error } = await supabase.from('meals').insert(meal).select().single()
+      if (!hid) throw new Error('No household')
+      const { data, error } = await supabase
+        .from('meals')
+        .insert({ ...meal, household_id: hid })
+        .select()
+        .single()
       if (error) throw error
       return data as Meal
     },

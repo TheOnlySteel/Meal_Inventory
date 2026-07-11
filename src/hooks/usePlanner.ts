@@ -27,6 +27,7 @@ export function usePlan() {
       const { data, error } = await supabase
         .from('plan_entries')
         .select('*, meals(*)')
+        .eq('household_id', hid!)
         .gte('plan_date', format(start, 'yyyy-MM-dd'))
         .lte('plan_date', format(end, 'yyyy-MM-dd'))
         .order('plan_date', { ascending: true })
@@ -42,8 +43,9 @@ export function usePlan() {
 export function usePlanMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
+  const hid = household?.id ?? null
   const todayIso = useToday()
-  const key = [...planKey(household?.id ?? null), todayIso]
+  const key = [...planKey(hid), todayIso]
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: PLAN_KEY })
     qc.invalidateQueries({ queryKey: ['meals'] })
@@ -56,7 +58,8 @@ export function usePlanMutations() {
 
   const addEntry = useMutation({
     mutationFn: async (entry: PlanEntryInsert) => {
-      const { error } = await supabase.from('plan_entries').insert(entry)
+      if (!hid) throw new Error('No household')
+      const { error } = await supabase.from('plan_entries').insert({ ...entry, household_id: hid })
       if (error) throw error
     },
     onSettled: invalidate,

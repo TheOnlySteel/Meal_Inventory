@@ -16,6 +16,7 @@ export function useRecipes() {
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
+        .eq('household_id', hid!)
         .order('name', { ascending: true })
       if (error) throw error
       return data as Recipe[]
@@ -28,12 +29,18 @@ export function useRecipes() {
 export function useRecipeMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = recipesKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = recipesKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: RECIPES_KEY })
 
   const addRecipe = useMutation({
     mutationFn: async (recipe: RecipeInsert): Promise<Recipe> => {
-      const { data, error } = await supabase.from('recipes').insert(recipe).select().single()
+      if (!hid) throw new Error('No household')
+      const { data, error } = await supabase
+        .from('recipes')
+        .insert({ ...recipe, household_id: hid })
+        .select()
+        .single()
       if (error) throw error
       return data as Recipe
     },

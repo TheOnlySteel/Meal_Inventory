@@ -16,6 +16,7 @@ export function useShopping() {
       const { data, error } = await supabase
         .from('shopping_items')
         .select('*')
+        .eq('household_id', hid!)
         .order('created_at', { ascending: true })
       if (error) throw error
       return data as ShoppingItem[]
@@ -28,14 +29,18 @@ export function useShopping() {
 export function useShoppingMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = shoppingKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = shoppingKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: SHOPPING_KEY })
   const patch = (fn: (old: ShoppingItem[]) => ShoppingItem[]) =>
     qc.setQueryData<ShoppingItem[]>(key, (old) => (old ? fn(old) : old))
 
   const addItem = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from('shopping_items').insert({ name: name.trim() })
+      if (!hid) throw new Error('No household')
+      const { error } = await supabase
+        .from('shopping_items')
+        .insert({ name: name.trim(), household_id: hid })
       if (error) throw error
     },
     onSettled: invalidate,
@@ -44,7 +49,8 @@ export function useShoppingMutations() {
   /** Bulk add (e.g. recipe ingredients); returns rows so callers can offer undo. */
   const addItems = useMutation({
     mutationFn: async (names: string[]): Promise<ShoppingItem[]> => {
-      const rows = names.map((name) => ({ name }))
+      if (!hid) throw new Error('No household')
+      const rows = names.map((name) => ({ name, household_id: hid }))
       const { data, error } = await supabase.from('shopping_items').insert(rows).select()
       if (error) throw error
       return data as ShoppingItem[]
@@ -98,11 +104,13 @@ export function useShoppingMutations() {
   /** Re-insert previously cleared items (undo for clearChecked). */
   const restoreItems = useMutation({
     mutationFn: async (items: ShoppingItem[]) => {
+      if (!hid) throw new Error('No household')
       const rows = items.map((i) => ({
         name: i.name,
         quantity: i.quantity,
         checked_at: i.checked_at,
         sort_order: i.sort_order,
+        household_id: hid,
       }))
       const { error } = await supabase.from('shopping_items').insert(rows)
       if (error) throw error
