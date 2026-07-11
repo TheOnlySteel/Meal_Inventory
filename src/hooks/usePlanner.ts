@@ -55,6 +55,15 @@ export function usePlanMutations() {
     qc.setQueryData<PlanEntry[]>(key, (old) =>
       old?.map((e) => (e.id === id ? { ...e, ...patch } : e)),
     )
+  // Cancel in-flight refetches so a stale response can't clobber the
+  // optimistic patch, and snapshot for rollback on error.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<PlanEntry[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: PlanEntry[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addEntry = useMutation({
     mutationFn: async (entry: PlanEntryInsert) => {
@@ -70,8 +79,12 @@ export function usePlanMutations() {
       const { error } = await supabase.from('plan_entries').delete().eq('id', id)
       if (error) throw error
     },
-    onMutate: async (id) =>
-      qc.setQueryData<PlanEntry[]>(key, (old) => old?.filter((e) => e.id !== id)),
+    onMutate: async (id) => {
+      const ctx = await snapshot()
+      qc.setQueryData<PlanEntry[]>(key, (old) => old?.filter((e) => e.id !== id))
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -82,7 +95,12 @@ export function usePlanMutations() {
       if (error) throw error
       return data as Partial<EatPackResult> & { entry_id: string }
     },
-    onMutate: async (entry) => patchEntry(entry.id, { completed_at: new Date().toISOString() }),
+    onMutate: async (entry) => {
+      const ctx = await snapshot()
+      patchEntry(entry.id, { completed_at: new Date().toISOString() })
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -91,7 +109,12 @@ export function usePlanMutations() {
       const { error } = await supabase.rpc('uncomplete_plan_entry', { p_entry_id: entryId })
       if (error) throw error
     },
-    onMutate: async (entryId) => patchEntry(entryId, { completed_at: null, log_id: null }),
+    onMutate: async (entryId) => {
+      const ctx = await snapshot()
+      patchEntry(entryId, { completed_at: null, log_id: null })
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 

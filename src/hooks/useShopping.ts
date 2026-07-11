@@ -34,6 +34,15 @@ export function useShoppingMutations() {
   const invalidate = () => qc.invalidateQueries({ queryKey: SHOPPING_KEY })
   const patch = (fn: (old: ShoppingItem[]) => ShoppingItem[]) =>
     qc.setQueryData<ShoppingItem[]>(key, (old) => (old ? fn(old) : old))
+  // Cancel in-flight refetches so a stale response can't clobber the
+  // optimistic patch, and snapshot for rollback on error.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<ShoppingItem[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: ShoppingItem[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addItem = useMutation({
     mutationFn: async (name: string) => {
@@ -75,12 +84,16 @@ export function useShoppingMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, checked }) =>
+    onMutate: async ({ id, checked }) => {
+      const ctx = await snapshot()
       patch((old) =>
         old.map((i) =>
           i.id === id ? { ...i, checked_at: checked ? new Date().toISOString() : null } : i,
         ),
-      ),
+      )
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -95,9 +108,12 @@ export function useShoppingMutations() {
       return items
     },
     onMutate: async (items) => {
+      const ctx = await snapshot()
       const ids = new Set(items.map((i) => i.id))
       patch((old) => old.filter((i) => !ids.has(i.id)))
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -123,7 +139,12 @@ export function useShoppingMutations() {
       const { error } = await supabase.from('shopping_items').delete().eq('id', id)
       if (error) throw error
     },
-    onMutate: async (id) => patch((old) => old.filter((i) => i.id !== id)),
+    onMutate: async (id) => {
+      const ctx = await snapshot()
+      patch((old) => old.filter((i) => i.id !== id))
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 

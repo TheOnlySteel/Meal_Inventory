@@ -108,6 +108,15 @@ export function useMealMutations() {
     qc.invalidateQueries({ queryKey: MEALS_KEY })
     qc.invalidateQueries({ queryKey: LOG_KEY })
   }
+  // Cancel in-flight refetches (60s polling + focus refetch) so a stale
+  // response can't clobber the optimistic patch, and snapshot for rollback.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<Meal[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: Meal[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addMeal = useMutation({
     mutationFn: async (meal: MealInsert) => {
@@ -131,7 +140,12 @@ export function useMealMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, patch }) => patchMealCache(qc, key, id, patch),
+    onMutate: async ({ id, patch }) => {
+      const ctx = await snapshot()
+      patchMealCache(qc, key, id, patch)
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -143,12 +157,15 @@ export function useMealMutations() {
       return data as EatPackResult
     },
     onMutate: async (meal) => {
+      const ctx = await snapshot()
       const newQty = Math.max(meal.pack_quantity - 1, 0)
       patchMealCache(qc, key, meal.id, {
         pack_quantity: newQty,
         archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
       })
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -172,8 +189,12 @@ export function useMealMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, archived }) =>
-      patchMealCache(qc, key, id, { archived_at: archived ? new Date().toISOString() : null }),
+    onMutate: async ({ id, archived }) => {
+      const ctx = await snapshot()
+      patchMealCache(qc, key, id, { archived_at: archived ? new Date().toISOString() : null })
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -183,8 +204,11 @@ export function useMealMutations() {
       if (error) throw error
     },
     onMutate: async (id) => {
+      const ctx = await snapshot()
       qc.setQueryData<Meal[]>(key, (old) => old?.filter((m) => m.id !== id))
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
