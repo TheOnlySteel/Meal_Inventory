@@ -10,25 +10,30 @@ interface HouseholdState {
   household: Household | null
   role: 'owner' | 'member' | null
   loading: boolean
+  error: boolean
+  retry: () => void
 }
 
 const HouseholdContext = createContext<HouseholdState>({
   household: null,
   role: null,
   loading: true,
+  error: false,
+  retry: () => {},
 })
 
 export function HouseholdProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const userId = session?.user.id
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['household', userId],
     enabled: !!userId,
     queryFn: async (): Promise<{ household: Household; role: 'owner' | 'member' } | null> => {
       const { data, error } = await supabase
         .from('household_members')
         .select('role, households(id, name, invite_code)')
+        .eq('user_id', userId!)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle()
@@ -47,8 +52,12 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       household: data?.household ?? null,
       role: data?.role ?? null,
       loading: isLoading,
+      error: isError,
+      retry: () => {
+        void refetch()
+      },
     }),
-    [data, isLoading],
+    [data, isLoading, isError, refetch],
   )
 
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>
@@ -86,11 +95,27 @@ export function useHouseholdMutations() {
 
 /** Blocks the app until the user belongs to a household. */
 export function HouseholdGate({ children }: { children: ReactNode }) {
-  const { household, loading } = useHousehold()
+  const { household, loading, error, retry } = useHousehold()
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-canvas">
         <div className="skeleton h-10 w-10 rounded-full" />
+      </div>
+    )
+  }
+  // Only a successful empty result means "no household" — a failed query must
+  // not be mistaken for first-run onboarding.
+  if (error && !household) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-canvas px-8 text-center">
+        <p className="text-[17px] font-semibold">Can&rsquo;t reach the larder</p>
+        <p className="text-[15px] text-ink2">Check your connection and try again.</p>
+        <button
+          onClick={retry}
+          className="pressable rounded-xl bg-tint px-6 py-2.5 text-[15px] font-semibold text-white"
+        >
+          Retry
+        </button>
       </div>
     )
   }

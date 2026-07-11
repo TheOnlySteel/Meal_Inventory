@@ -8,9 +8,9 @@ import { useMembers, memberName } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
 import { useToday } from '../hooks/useToday'
 import { freshnessOf } from '../lib/freshness'
+import { eatErrorMessage } from '../lib/errors'
 import { groupChores, dueLabel } from '../lib/chores'
 import { fmtDateFull, fmtNum } from '../lib/format'
-import { pressableProps } from '../lib/a11y'
 import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
@@ -56,9 +56,15 @@ function useWakeLock() {
 export default function Dashboard() {
   useRealtimeSync()
   useWakeLock()
+  useEffect(() => {
+    document.title = 'Kiosk · Larder'
+    return () => {
+      document.title = 'Larder'
+    }
+  }, [])
   const now = useClock()
   const todayIso = useToday()
-  const { data: meals, isLoading } = useMeals()
+  const { data: meals, isLoading, error, refetch } = useMeals()
   const { data: plan } = usePlan()
   const { data: chores } = useChores()
   const { data: members } = useMembers()
@@ -136,7 +142,10 @@ export default function Dashboard() {
           undo: () => uncompleteEntry.mutate(entry.id),
         })
       },
-      onError: () => toast('Could not update', { tone: 'error' }),
+      onError: (err) =>
+        toast(eatErrorMessage(err, entry.meals?.name ?? entry.title ?? undefined), {
+          tone: 'error',
+        }),
     })
   }
 
@@ -148,7 +157,7 @@ export default function Dashboard() {
           undo: () => undoEat.mutate(log_id),
         })
       },
-      onError: () => toast('Could not update', { tone: 'error' }),
+      onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
     })
   }
 
@@ -173,6 +182,15 @@ export default function Dashboard() {
             >
               <span className="text-[28px] font-bold tabular-nums">{stats.urgent}</span>
               <span className="text-[15px] font-medium">need eating</span>
+            </div>
+          ) : error ? (
+            <div
+              className="flex items-baseline gap-2 rounded-2xl px-4 py-2"
+              style={{ background: 'color-mix(in srgb, var(--red) 14%, transparent)' }}
+            >
+              <span className="text-[15px] font-semibold" style={{ color: 'var(--red)' }}>
+                Offline
+              </span>
             </div>
           ) : (
             <div
@@ -289,7 +307,21 @@ export default function Dashboard() {
         {isLoading &&
           [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-40" />)}
 
-        {!isLoading && active.length === 0 && (
+        {/* A failed fetch must not masquerade as an empty larder */}
+        {error && active.length === 0 && !isLoading && (
+          <div className="col-span-full flex flex-col items-center gap-3 py-24">
+            <p className="text-[22px] font-semibold text-ink2">Can&rsquo;t reach the larder</p>
+            <p className="text-[15px] text-ink2">Check the connection and try again.</p>
+            <button
+              onClick={() => refetch()}
+              className="pressable rounded-2xl bg-tint px-8 py-3 text-[17px] font-semibold text-white"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !error && active.length === 0 && (
           <div className="col-span-full flex flex-col items-center gap-3 py-24">
             <Icon name="takeout" size={72} strokeWidth={1} className="text-ink3" />
             <p className="text-[22px] font-semibold text-ink2">The larder is empty</p>
@@ -301,12 +333,18 @@ export default function Dashboard() {
           return (
             <div
               key={meal.id}
-              onClick={() => setDetail(meal)}
-              {...pressableProps(() => setDetail(meal))}
-              className="pop-in pressable relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
+              className="pop-in relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
               style={{ borderTop: `4px solid ${fresh.color}` }}
             >
-              <div className="flex w-full items-start justify-between gap-3">
+              {/* Full-tile details button underneath; the tick button sits
+                  above it as a sibling, so no interactive nesting. */}
+              <button
+                type="button"
+                onClick={() => setDetail(meal)}
+                aria-label={`${meal.name} — details`}
+                className="pressable absolute inset-0 z-0 rounded-3xl"
+              />
+              <div className="pointer-events-none relative z-10 flex w-full items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-[19px] leading-snug font-semibold">{meal.name}</h3>
                   <p
@@ -327,7 +365,7 @@ export default function Dashboard() {
                 <FreshnessRing freshness={fresh} size={52} />
               </div>
 
-              <div className="mt-4 flex w-full items-end justify-between">
+              <div className="pointer-events-none relative z-10 mt-4 flex w-full items-end justify-between">
                 <div>
                   <p className="text-[28px] leading-none font-bold tabular-nums">
                     {meal.pack_quantity}
@@ -345,7 +383,8 @@ export default function Dashboard() {
                 <button
                   aria-label={`Mark one ${meal.name} as taken`}
                   onClick={(e) => tickOff(meal, e)}
-                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white"
+                  disabled={meal.pack_quantity === 0}
+                  className="pressable hit pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-white disabled:opacity-40"
                   style={{ background: 'var(--tint)' }}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24">
@@ -410,7 +449,8 @@ export default function Dashboard() {
                   <div className="flex gap-3">
                     <button
                       onClick={(e) => tickOff(liveDetail, e)}
-                      className="pressable flex-1 rounded-2xl bg-tint py-4 text-[17px] font-semibold text-white"
+                      disabled={liveDetail.pack_quantity === 0}
+                      className="pressable flex-1 rounded-2xl bg-tint py-4 text-[17px] font-semibold text-white disabled:opacity-40"
                     >
                       ✓&ensp;Take one pack
                     </button>

@@ -18,6 +18,7 @@ export function useChores() {
       const { data, error } = await supabase
         .from('chores')
         .select('*')
+        .eq('household_id', hid!)
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -31,14 +32,25 @@ export function useChores() {
 export function useChoreMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = choresKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = choresKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: CHORES_KEY })
   const patch = (id: string, p: Partial<Chore>) =>
     qc.setQueryData<Chore[]>(key, (old) => old?.map((c) => (c.id === id ? { ...c, ...p } : c)))
+  // Cancel in-flight refetches so a stale response can't clobber the
+  // optimistic patch, and snapshot for rollback on error.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<Chore[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: Chore[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addChore = useMutation({
     mutationFn: async (chore: ChoreInsert) => {
-      const { error } = await supabase.from('chores').insert(chore)
+      if (!hid) throw new Error('No household')
+      const { error } = await supabase.from('chores').insert({ ...chore, household_id: hid })
       if (error) throw error
     },
     onSettled: invalidate,
@@ -49,7 +61,12 @@ export function useChoreMutations() {
       const { error } = await supabase.from('chores').update(p).eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, patch: p }) => patch(id, p),
+    onMutate: async ({ id, patch: p }) => {
+      const ctx = await snapshot()
+      patch(id, p)
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -58,8 +75,12 @@ export function useChoreMutations() {
       const { error } = await supabase.from('chores').delete().eq('id', id)
       if (error) throw error
     },
-    onMutate: async (id) =>
-      qc.setQueryData<Chore[]>(key, (old) => old?.filter((c) => c.id !== id)),
+    onMutate: async (id) => {
+      const ctx = await snapshot()
+      qc.setQueryData<Chore[]>(key, (old) => old?.filter((c) => c.id !== id))
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -74,6 +95,7 @@ export function useChoreMutations() {
       return data as { chore_id: string; recurring?: boolean; next_due?: string }
     },
     onMutate: async (chore) => {
+      const ctx = await snapshot()
       const now = new Date().toISOString()
       if (chore.recur_interval_days == null) {
         patch(chore.id, { completed_at: now, last_completed_at: now })
@@ -85,7 +107,9 @@ export function useChoreMutations() {
           due_date: computeNextDue(chore, todayISO()),
         })
       }
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -95,8 +119,9 @@ export function useChoreMutations() {
       if (error) throw error
     },
     onMutate: async (choreId) => {
-      const chore = qc.getQueryData<Chore[]>(key)?.find((c) => c.id === choreId)
-      if (!chore) return
+      const ctx = await snapshot()
+      const chore = ctx.previous?.find((c) => c.id === choreId)
+      if (!chore) return ctx
       if (chore.recur_interval_days == null) {
         patch(choreId, { completed_at: null, last_completed_at: chore.prev_last_completed_at })
       } else {
@@ -107,7 +132,9 @@ export function useChoreMutations() {
           prev_last_completed_at: null,
         })
       }
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 

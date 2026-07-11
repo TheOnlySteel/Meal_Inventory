@@ -18,6 +18,9 @@ export default defineConfig({
         background_color: '#f2f2f7',
         display: 'standalone',
         orientation: 'any',
+        // vite-plugin-pwa injects '/' even when omitted, so keep it explicit;
+        // installed apps always launch at the phone home screen and the kiosk
+        // is reached via its in-app link (see README).
         start_url: '/',
         icons: [
           { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },

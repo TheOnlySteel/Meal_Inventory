@@ -7,7 +7,8 @@ import { urgencySort } from '../lib/freshness'
 import { useHousehold } from './useHousehold'
 
 // Keys carry the household id so caches can't bleed across a create/join
-// switch; RLS does the actual scoping server-side.
+// switch. Queries and inserts also pass household_id explicitly so reads and
+// writes stay pinned to the active household (RLS still enforces membership).
 const MEALS_KEY = ['meals']
 const LOG_KEY = ['meal_log']
 export const mealsKey = (hid: string | null) => [...MEALS_KEY, hid]
@@ -20,7 +21,7 @@ export function useMeals() {
     queryKey: mealsKey(hid),
     enabled: !!hid,
     queryFn: async (): Promise<Meal[]> => {
-      const { data, error } = await supabase.from('meals').select('*')
+      const { data, error } = await supabase.from('meals').select('*').eq('household_id', hid!)
       if (error) throw error
       return (data as Meal[]).sort(urgencySort)
     },
@@ -41,6 +42,7 @@ export function useTodayLog() {
       const { data, error } = await supabase
         .from('meal_log')
         .select('*, meals(*)')
+        .eq('household_id', hid!)
         .gte('logged_at', since)
         .order('logged_at', { ascending: false })
       if (error) throw error
@@ -100,15 +102,30 @@ function patchMealCache(
 export function useMealMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = mealsKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = mealsKey(hid)
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: MEALS_KEY })
     qc.invalidateQueries({ queryKey: LOG_KEY })
   }
+  // Cancel in-flight refetches (60s polling + focus refetch) so a stale
+  // response can't clobber the optimistic patch, and snapshot for rollback.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<Meal[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: Meal[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addMeal = useMutation({
     mutationFn: async (meal: MealInsert) => {
-      const { data, error } = await supabase.from('meals').insert(meal).select().single()
+      if (!hid) throw new Error('No household')
+      const { data, error } = await supabase
+        .from('meals')
+        .insert({ ...meal, household_id: hid })
+        .select()
+        .single()
       if (error) throw error
       return data as Meal
     },
@@ -123,7 +140,12 @@ export function useMealMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, patch }) => patchMealCache(qc, key, id, patch),
+    onMutate: async ({ id, patch }) => {
+      const ctx = await snapshot()
+      patchMealCache(qc, key, id, patch)
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -135,12 +157,15 @@ export function useMealMutations() {
       return data as EatPackResult
     },
     onMutate: async (meal) => {
+      const ctx = await snapshot()
       const newQty = Math.max(meal.pack_quantity - 1, 0)
       patchMealCache(qc, key, meal.id, {
         pack_quantity: newQty,
         archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
       })
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -164,8 +189,12 @@ export function useMealMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, archived }) =>
-      patchMealCache(qc, key, id, { archived_at: archived ? new Date().toISOString() : null }),
+    onMutate: async ({ id, archived }) => {
+      const ctx = await snapshot()
+      patchMealCache(qc, key, id, { archived_at: archived ? new Date().toISOString() : null })
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -175,8 +204,11 @@ export function useMealMutations() {
       if (error) throw error
     },
     onMutate: async (id) => {
+      const ctx = await snapshot()
       qc.setQueryData<Meal[]>(key, (old) => old?.filter((m) => m.id !== id))
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 

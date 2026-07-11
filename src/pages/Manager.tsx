@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
+import { eatErrorMessage } from '../lib/errors'
 import { fmtNum, todayISO } from '../lib/format'
 import type { Meal, MealInsert, MealType, StorageLocation } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
@@ -92,24 +93,22 @@ export default function Manager() {
           undo: () => undoEat.mutate(log_id),
         })
       },
-      onError: () => toast('Could not update — check connection', { tone: 'error' }),
+      onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
     })
   }
 
-  function handleSave(values: MealInsert, editingId?: string) {
-    setFormOpen(false)
-    setEditing(null)
-    setTemplate(null)
+  // Awaited by the form sheet: it stays open (showing the error) on failure
+  // and closes itself on success.
+  async function handleSave(values: MealInsert, editingId?: string) {
     if (editingId) {
-      updateMeal.mutate(
-        { id: editingId, patch: values },
-        { onError: () => toast('Save failed', { tone: 'error' }) },
-      )
+      // Editing an archived meal back to stock revives it (the Restore flow
+      // for depleted meals routes through this form).
+      const patch: Partial<Meal> = { ...values }
+      if (editing?.archived_at && values.pack_quantity > 0) patch.archived_at = null
+      await updateMeal.mutateAsync({ id: editingId, patch })
     } else {
-      addMeal.mutate(values, {
-        onSuccess: () => toast(`Added ${values.name}`),
-        onError: () => toast('Save failed', { tone: 'error' }),
-      })
+      await addMeal.mutateAsync(values)
+      toast(`Added ${values.name}`)
     }
   }
 
@@ -147,16 +146,11 @@ export default function Manager() {
     setExpandedId(null)
   }
 
-  function handleRecipeSave(values: RecipeInsert) {
+  async function handleRecipeSave(values: RecipeInsert) {
     const source = recipeTemplate?.meal
-    setRecipeTemplate(null)
-    addRecipe.mutate(values, {
-      onSuccess: (recipe) => {
-        if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
-        toast(`Saved ${recipe.name} as a recipe`)
-      },
-      onError: () => toast('Save failed', { tone: 'error' }),
-    })
+    const recipe = await addRecipe.mutateAsync(values)
+    if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
+    toast(`Saved ${recipe.name} as a recipe`)
   }
 
   const filterChips: { key: Filter; label: string }[] = [
@@ -312,7 +306,7 @@ export default function Manager() {
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>
-            Couldn’t load meals. Pull to refresh or check connection.
+            Couldn’t load meals. Check your connection and try again.
           </p>
         )}
 
@@ -356,7 +350,16 @@ export default function Manager() {
                 undo: () => archiveMeal.mutate({ id: meal.id, archived: false }),
               })
             }}
-            onRestore={() => archiveMeal.mutate({ id: meal.id, archived: false })}
+            onRestore={() => {
+              if (meal.pack_quantity === 0) {
+                // Nothing left to restore — reopen the form so packs get set.
+                setEditing(meal)
+                setTemplate(null)
+                setFormOpen(true)
+              } else {
+                archiveMeal.mutate({ id: meal.id, archived: false })
+              }
+            }}
             onDelete={() => setConfirmDelete(meal)}
           />
         ))}

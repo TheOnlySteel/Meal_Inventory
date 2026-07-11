@@ -16,6 +16,7 @@ export function useShopping() {
       const { data, error } = await supabase
         .from('shopping_items')
         .select('*')
+        .eq('household_id', hid!)
         .order('created_at', { ascending: true })
       if (error) throw error
       return data as ShoppingItem[]
@@ -28,14 +29,27 @@ export function useShopping() {
 export function useShoppingMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = shoppingKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = shoppingKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: SHOPPING_KEY })
   const patch = (fn: (old: ShoppingItem[]) => ShoppingItem[]) =>
     qc.setQueryData<ShoppingItem[]>(key, (old) => (old ? fn(old) : old))
+  // Cancel in-flight refetches so a stale response can't clobber the
+  // optimistic patch, and snapshot for rollback on error.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<ShoppingItem[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: ShoppingItem[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addItem = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from('shopping_items').insert({ name: name.trim() })
+      if (!hid) throw new Error('No household')
+      const { error } = await supabase
+        .from('shopping_items')
+        .insert({ name: name.trim(), household_id: hid })
       if (error) throw error
     },
     onSettled: invalidate,
@@ -44,7 +58,8 @@ export function useShoppingMutations() {
   /** Bulk add (e.g. recipe ingredients); returns rows so callers can offer undo. */
   const addItems = useMutation({
     mutationFn: async (names: string[]): Promise<ShoppingItem[]> => {
-      const rows = names.map((name) => ({ name }))
+      if (!hid) throw new Error('No household')
+      const rows = names.map((name) => ({ name, household_id: hid }))
       const { data, error } = await supabase.from('shopping_items').insert(rows).select()
       if (error) throw error
       return data as ShoppingItem[]
@@ -69,12 +84,16 @@ export function useShoppingMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, checked }) =>
+    onMutate: async ({ id, checked }) => {
+      const ctx = await snapshot()
       patch((old) =>
         old.map((i) =>
           i.id === id ? { ...i, checked_at: checked ? new Date().toISOString() : null } : i,
         ),
-      ),
+      )
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -89,20 +108,25 @@ export function useShoppingMutations() {
       return items
     },
     onMutate: async (items) => {
+      const ctx = await snapshot()
       const ids = new Set(items.map((i) => i.id))
       patch((old) => old.filter((i) => !ids.has(i.id)))
+      return ctx
     },
+    onError: rollback,
     onSettled: invalidate,
   })
 
   /** Re-insert previously cleared items (undo for clearChecked). */
   const restoreItems = useMutation({
     mutationFn: async (items: ShoppingItem[]) => {
+      if (!hid) throw new Error('No household')
       const rows = items.map((i) => ({
         name: i.name,
         quantity: i.quantity,
         checked_at: i.checked_at,
         sort_order: i.sort_order,
+        household_id: hid,
       }))
       const { error } = await supabase.from('shopping_items').insert(rows)
       if (error) throw error
@@ -115,7 +139,12 @@ export function useShoppingMutations() {
       const { error } = await supabase.from('shopping_items').delete().eq('id', id)
       if (error) throw error
     },
-    onMutate: async (id) => patch((old) => old.filter((i) => i.id !== id)),
+    onMutate: async (id) => {
+      const ctx = await snapshot()
+      patch((old) => old.filter((i) => i.id !== id))
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 

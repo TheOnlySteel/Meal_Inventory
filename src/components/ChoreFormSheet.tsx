@@ -11,7 +11,8 @@ import Icon from './Icon'
 interface Props {
   editing?: Chore | null
   onClose: () => void
-  onSave: (values: ChoreInsert, editingId?: string) => void
+  /** Resolves on success (the sheet closes itself); rejection keeps it open. */
+  onSave: (values: ChoreInsert, editingId?: string) => Promise<void>
   onDelete?: () => void
 }
 
@@ -23,19 +24,30 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
   const [assignee, setAssignee] = useState<string | null>(editing?.assigned_to ?? null)
   const [dueDate, setDueDate] = useState(editing?.due_date ?? '')
   const [recurDays, setRecurDays] = useState<number | null>(editing?.recur_interval_days ?? null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent, close: () => void) {
     e.preventDefault()
-    onSave(
-      {
-        title: title.trim(),
-        notes: notes.trim() || null,
-        assigned_to: assignee,
-        due_date: dueDate || null,
-        recur_interval_days: recurDays,
-      },
-      editing?.id,
-    )
+    if (saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSave(
+        {
+          title: title.trim(),
+          notes: notes.trim() || null,
+          assigned_to: assignee,
+          due_date: dueDate || null,
+          recur_interval_days: recurDays,
+        },
+        editing?.id,
+      )
+      close()
+    } catch {
+      setSaveError('Couldn’t save — check your connection and try again')
+      setSaving(false)
+    }
   }
 
   const inputCls =
@@ -53,7 +65,7 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
       panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
     >
       {(close) => (
-      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
+      <form onSubmit={(e) => submit(e, close)} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
@@ -61,12 +73,18 @@ export default function ChoreFormSheet({ editing, onClose, onSave, onDelete }: P
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit chore' : 'New chore'}</h2>
           <button
             type="submit"
-            disabled={!title.trim()}
+            disabled={!title.trim() || saving}
             className="pressable text-[16px] font-semibold text-tint disabled:opacity-40"
           >
-            {editing ? 'Save' : 'Add'}
+            {saving ? 'Saving…' : editing ? 'Save' : 'Add'}
           </button>
         </div>
+
+        {saveError && (
+          <p role="alert" className="px-5 pb-1 text-[13px]" style={{ color: 'var(--red)' }}>
+            {saveError}
+          </p>
+        )}
 
         <div className="no-scrollbar flex flex-col gap-4 overflow-y-auto px-5 pt-2 pb-8 safe-b">
           <label className="flex flex-col gap-1.5">

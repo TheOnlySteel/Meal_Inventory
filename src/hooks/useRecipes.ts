@@ -16,6 +16,7 @@ export function useRecipes() {
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
+        .eq('household_id', hid!)
         .order('name', { ascending: true })
       if (error) throw error
       return data as Recipe[]
@@ -28,12 +29,27 @@ export function useRecipes() {
 export function useRecipeMutations() {
   const qc = useQueryClient()
   const { household } = useHousehold()
-  const key = recipesKey(household?.id ?? null)
+  const hid = household?.id ?? null
+  const key = recipesKey(hid)
   const invalidate = () => qc.invalidateQueries({ queryKey: RECIPES_KEY })
+  // Cancel in-flight refetches so a stale response can't clobber the
+  // optimistic patch, and snapshot for rollback on error.
+  const snapshot = async () => {
+    await qc.cancelQueries({ queryKey: key })
+    return { previous: qc.getQueryData<Recipe[]>(key) }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { previous?: Recipe[] }) => {
+    if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
+  }
 
   const addRecipe = useMutation({
     mutationFn: async (recipe: RecipeInsert): Promise<Recipe> => {
-      const { data, error } = await supabase.from('recipes').insert(recipe).select().single()
+      if (!hid) throw new Error('No household')
+      const { data, error } = await supabase
+        .from('recipes')
+        .insert({ ...recipe, household_id: hid })
+        .select()
+        .single()
       if (error) throw error
       return data as Recipe
     },
@@ -48,10 +64,14 @@ export function useRecipeMutations() {
         .eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, patch }) =>
+    onMutate: async ({ id, patch }) => {
+      const ctx = await snapshot()
       qc.setQueryData<Recipe[]>(key, (old) =>
         old?.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      ),
+      )
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 
@@ -60,8 +80,12 @@ export function useRecipeMutations() {
       const { error } = await supabase.from('recipes').delete().eq('id', id)
       if (error) throw error
     },
-    onMutate: async (id) =>
-      qc.setQueryData<Recipe[]>(key, (old) => old?.filter((r) => r.id !== id)),
+    onMutate: async (id) => {
+      const ctx = await snapshot()
+      qc.setQueryData<Recipe[]>(key, (old) => old?.filter((r) => r.id !== id))
+      return ctx
+    },
+    onError: rollback,
     onSettled: invalidate,
   })
 

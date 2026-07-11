@@ -66,9 +66,9 @@ Open the site in Safari → **Share** → **Add to Home Screen**. Launch it from
 
 ## iPad kiosk setup
 
-1. Log in once in Safari, then open `/dashboard`.
-2. **Share** → **Add to Home Screen**, and launch from the icon.
-3. Enable Guided Access for kiosk mode: **Settings → Accessibility → Guided Access**, then triple-click the side/home button while the app is open.
+1. Log in once in Safari, then **Share** → **Add to Home Screen** and launch from the icon. (The installed app always opens on the home screen, regardless of the page it was installed from.)
+2. In the app, open the **Larder** tab and tap **Kiosk** in the header to reach the dashboard.
+3. Enable Guided Access for kiosk mode: **Settings → Accessibility → Guided Access**, then triple-click the side/home button while the app is open — it stays on the dashboard while pinned.
 4. Keep the display awake: **Settings → Display & Brightness → Auto-Lock → Never.**
 
 ## Household accounts

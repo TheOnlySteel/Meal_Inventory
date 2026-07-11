@@ -22,6 +22,22 @@ interface Props {
 const reducedMotion = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// Module-level stack so stacked sheets (e.g. recipe detail under its edit
+// form) don't fight: only the topmost sheet handles Escape/Tab, and lower
+// sheets are inert while covered.
+const sheetStack: symbol[] = []
+const stackListeners = new Set<() => void>()
+function pushSheet(id: symbol) {
+  sheetStack.push(id)
+  stackListeners.forEach((fn) => fn())
+}
+function popSheet(id: symbol) {
+  const i = sheetStack.indexOf(id)
+  if (i >= 0) sheetStack.splice(i, 1)
+  stackListeners.forEach((fn) => fn())
+}
+const isTopSheet = (id: symbol) => sheetStack[sheetStack.length - 1] === id
+
 /**
  * Shared modal shell: backdrop, enter/exit animations, Escape-to-close,
  * body scroll lock, focus restore, Tab containment, and keyboard-aware
@@ -36,8 +52,11 @@ export default function Sheet({
   ariaLabel,
 }: Props) {
   const [closing, setClosing] = useState(false)
+  const [isTop, setIsTop] = useState(true)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const idRef = useRef<symbol | null>(null)
+  if (idRef.current == null) idRef.current = Symbol('sheet')
 
   const close = useCallback(() => {
     setClosing((was) => {
@@ -47,6 +66,18 @@ export default function Sheet({
       return true
     })
   }, [onClose])
+
+  useEffect(() => {
+    const id = idRef.current!
+    pushSheet(id)
+    const update = () => setIsTop(isTopSheet(id))
+    update()
+    stackListeners.add(update)
+    return () => {
+      stackListeners.delete(update)
+      popSheet(id)
+    }
+  }, [])
 
   useEffect(() => {
     const returnFocus = document.activeElement as HTMLElement | null
@@ -67,7 +98,11 @@ export default function Sheet({
     const onFocusIn = (e: FocusEvent) => {
       const el = e.target as HTMLElement
       if (el.matches?.('input, textarea, select')) {
-        setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250)
+        setTimeout(
+          () =>
+            el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' }),
+          250,
+        )
       }
     }
     const panel = panelRef.current
@@ -84,6 +119,9 @@ export default function Sheet({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Every open sheet listens on document; only the topmost may act, so
+      // Escape peels one layer at a time instead of closing the whole stack.
+      if (!isTopSheet(idRef.current!)) return
       if (e.key === 'Escape') {
         e.stopPropagation()
         close()
@@ -116,7 +154,7 @@ export default function Sheet({
 
   return (
     <SheetCloseContext.Provider value={close}>
-      <div className={`fixed inset-0 z-50 flex ${positionCls}`}>
+      <div inert={!isTop || undefined} className={`fixed inset-0 z-50 flex ${positionCls}`}>
         <div
           className={`absolute inset-0 bg-black/40 ${closing ? 'fade-out' : 'fade-in'}`}
           onClick={close}

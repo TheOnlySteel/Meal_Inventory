@@ -7,6 +7,7 @@ import { useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import { useToday } from '../hooks/useToday'
 import { groupChores } from '../lib/chores'
+import { eatErrorMessage } from '../lib/errors'
 import ChoreRow from '../components/ChoreRow'
 import { freshnessOf } from '../lib/freshness'
 import { fmtNum } from '../lib/format'
@@ -98,7 +99,7 @@ export default function Planner() {
           undo: () => uncompleteEntry.mutate(entry.id),
         })
       },
-      onError: () => toast('Could not update', { tone: 'error' }),
+      onError: (err) => toast(eatErrorMessage(err, displayName(entry)), { tone: 'error' }),
     })
   }
 

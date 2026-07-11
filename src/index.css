@@ -6,8 +6,10 @@
   --card: #ffffff;
   --card-2: rgba(120, 120, 128, 0.08);
   --ink: #1d1d1f;
-  --ink-2: rgba(60, 60, 67, 0.6);
-  --ink-3: rgba(60, 60, 67, 0.33);
+  /* Nudged above iOS system values so secondary text clears WCAG AA (4.5:1)
+     and tertiary clears large-text AA on white cards */
+  --ink-2: rgba(60, 60, 67, 0.72);
+  --ink-3: rgba(60, 60, 67, 0.45);
   --sep: rgba(60, 60, 67, 0.12);
   --tint: #007aff;
   --green: #34c759;

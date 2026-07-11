@@ -46,11 +46,17 @@ export function useMemberMutations() {
       if (error) throw error
     },
     onMutate: async (name) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<HouseholdMember[]>(key)
       qc.setQueryData<HouseholdMember[]>(key, (old) =>
         old?.map((m) =>
           m.user_id === session?.user.id ? { ...m, display_name: name.trim() } : m,
         ),
       )
+      return { previous }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(key, ctx.previous)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: MEMBERS_KEY }),
   })

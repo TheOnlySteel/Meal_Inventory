@@ -12,7 +12,8 @@ interface Props {
   /** Prefill for "save meal as recipe". */
   template?: Partial<Recipe> | null
   onClose: () => void
-  onSave: (values: RecipeInsert, editingId?: string) => void
+  /** Resolves on success (the sheet closes itself); rejection keeps it open. */
+  onSave: (values: RecipeInsert, editingId?: string) => Promise<void>
 }
 
 function toFormNums(src: Partial<Recipe> | null | undefined): Record<string, string> {
@@ -42,6 +43,8 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
   const [lifeTouched, setLifeTouched] = useState(base?.default_shelf_life_days != null)
   const [notes, setNotes] = useState(base?.notes ?? '')
   const [nums, setNums] = useState<Record<string, string>>(toFormNums(base))
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const shelfDays = daysFromLife(shelfLife, location)
 
@@ -66,8 +69,9 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
     return Number.isFinite(n) ? n : null
   }
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent, close: () => void) {
     e.preventDefault()
+    if (saving) return
     const values: RecipeInsert = {
       name: name.trim(),
       ingredients: ingredients.trim(),
@@ -90,7 +94,15 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
       vit_c_mg: numOrNull('vit_c_mg'),
       vit_d_ug: numOrNull('vit_d_ug'),
     }
-    onSave(values, editing?.id)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSave(values, editing?.id)
+      close()
+    } catch {
+      setSaveError('Couldn’t save — check your connection and try again')
+      setSaving(false)
+    }
   }
 
   const inputCls =
@@ -104,7 +116,7 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
       panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
     >
       {(close) => (
-      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
+      <form onSubmit={(e) => submit(e, close)} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
@@ -112,12 +124,18 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit recipe' : 'New recipe'}</h2>
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="pressable text-[16px] font-semibold text-tint disabled:opacity-40"
           >
-            {editing ? 'Save' : 'Add'}
+            {saving ? 'Saving…' : editing ? 'Save' : 'Add'}
           </button>
         </div>
+
+        {saveError && (
+          <p role="alert" className="px-5 pb-1 text-[13px]" style={{ color: 'var(--red)' }}>
+            {saveError}
+          </p>
+        )}
 
         <div className="no-scrollbar flex flex-col gap-4 overflow-y-auto px-5 pt-2 pb-8 safe-b">
           <label className="flex flex-col gap-1.5">

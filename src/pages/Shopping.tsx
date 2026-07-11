@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import type { ShoppingItem } from '../lib/types'
-import { pressableProps } from '../lib/a11y'
 import Icon from '../components/Icon'
 import AddItemsSheet from '../components/AddItemsSheet'
 
@@ -118,42 +117,44 @@ function Row({
 }) {
   return (
     <div
-      onClick={onToggle}
-      {...pressableProps(onToggle)}
-      aria-label={`${item.name} — ${checked ? 'checked, tap to uncheck' : 'tap to check off'}`}
-      className={`pop-in pressable flex cursor-pointer items-center gap-3 rounded-2xl bg-card px-4 py-3 card-shadow ${
+      className={`pop-in flex items-center gap-3 rounded-2xl bg-card px-4 py-3 card-shadow ${
         checked ? 'opacity-60' : ''
       }`}
     >
-      <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
-        style={{
-          borderColor: checked ? 'var(--tint)' : 'var(--sep)',
-          background: checked ? 'var(--tint)' : 'transparent',
-        }}
-      >
-        {checked && (
-          <svg width="13" height="13" viewBox="0 0 24 24">
-            <path
-              d="M5 12.5 10 17.5 19 7"
-              fill="none"
-              stroke="white"
-              strokeWidth="3.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </span>
-      <span className={`min-w-0 flex-1 truncate text-[16px] font-medium ${checked ? 'line-through' : ''}`}>
-        {item.name}
-        {item.quantity ? <span className="ml-2 text-[13px] text-ink2">{item.quantity}</span> : null}
-      </span>
+      {/* Check-off is a real button; delete is a sibling, so nothing nests. */}
       <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete()
-        }}
+        type="button"
+        onClick={onToggle}
+        aria-label={`${item.name} — ${checked ? 'checked, tap to uncheck' : 'tap to check off'}`}
+        className="pressable flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+          style={{
+            borderColor: checked ? 'var(--tint)' : 'var(--sep)',
+            background: checked ? 'var(--tint)' : 'transparent',
+          }}
+        >
+          {checked && (
+            <svg width="13" height="13" viewBox="0 0 24 24">
+              <path
+                d="M5 12.5 10 17.5 19 7"
+                fill="none"
+                stroke="white"
+                strokeWidth="3.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </span>
+        <span className={`min-w-0 flex-1 truncate text-[16px] font-medium ${checked ? 'line-through' : ''}`}>
+          {item.name}
+          {item.quantity ? <span className="ml-2 text-[13px] text-ink2">{item.quantity}</span> : null}
+        </span>
+      </button>
+      <button
+        onClick={onDelete}
         aria-label={`Delete ${item.name}`}
         className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
       >

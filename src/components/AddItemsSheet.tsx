@@ -15,10 +15,16 @@ export default function AddItemsSheet({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     const name = draft.trim()
     if (!name) return
+    // Rapid entry stays optimistic; a failure puts the draft back and
+    // corrects the counter instead of silently dropping the item.
     setDraft('')
     setAdded((n) => n + 1)
     addItem.mutate(name, {
-      onError: () => toast('Could not add item', { tone: 'error' }),
+      onError: () => {
+        setAdded((n) => Math.max(n - 1, 0))
+        setDraft((d) => d || name)
+        toast('Could not add item', { tone: 'error' })
+      },
     })
   }
 

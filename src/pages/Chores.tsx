@@ -47,22 +47,16 @@ export default function Chores() {
     })
   }
 
-  function handleSave(values: ChoreInsert, editingId?: string) {
-    setFormOpen(false)
-    setEditing(null)
+  // Awaited by the form sheet: it stays open on failure, closes on success.
+  async function handleSave(values: ChoreInsert, editingId?: string) {
     if (editingId) {
       // honour the table check: adding recurrence to a completed one-off revives it
       const patch =
         values.recur_interval_days != null ? { ...values, completed_at: null } : values
-      updateChore.mutate(
-        { id: editingId, patch },
-        { onError: () => toast('Save failed', { tone: 'error' }) },
-      )
+      await updateChore.mutateAsync({ id: editingId, patch })
     } else {
-      addChore.mutate(values, {
-        onSuccess: () => toast(`Added ${values.title}`),
-        onError: () => toast('Save failed', { tone: 'error' }),
-      })
+      await addChore.mutateAsync(values)
+      toast(`Added ${values.title}`)
     }
   }
 

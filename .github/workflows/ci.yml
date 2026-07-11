@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values so any build-time env validation passes; the client
+      # only reads these at runtime.
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      # build runs `tsc -b && vite build`, so this is also the typecheck
+      - run: npm run build

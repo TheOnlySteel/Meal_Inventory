@@ -2,7 +2,6 @@ import type { Meal } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { freshnessOf } from '../lib/freshness'
 import { fmtDate, fmtNum } from '../lib/format'
-import { pressableProps } from '../lib/a11y'
 import FreshnessRing from './FreshnessRing'
 import MacroGrid from './MacroGrid'
 import Icon from './Icon'
@@ -42,15 +41,19 @@ export default function MealCard({
 
   return (
     <div
-      onClick={onToggle}
-      {...pressableProps(onToggle)}
-      aria-expanded={expanded}
-      className={`pop-in cursor-pointer rounded-2xl bg-card card-shadow transition-all ${
+      className={`pop-in rounded-2xl bg-card card-shadow transition-all ${
         depleted ? 'opacity-60' : ''
       }`}
       style={{ borderLeft: `4px solid ${depleted ? 'var(--ink-3)' : fresh.color}` }}
     >
-      <div className="flex items-center gap-3 p-4">
+      {/* The disclosure is a real button; action buttons below are siblings,
+          not descendants, so the semantics stay valid. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-3 p-4 text-left"
+      >
         <FreshnessRing freshness={fresh} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -90,7 +93,7 @@ export default function MealCard({
             {fmtNum(meal.servings_per_pack)} serv/pack
           </span>
         </div>
-      </div>
+      </button>
 
       {/* pack progress hairline */}
       <div className="mx-4 h-[3px] overflow-hidden rounded-full bg-card2">
@@ -104,11 +107,11 @@ export default function MealCard({
       </div>
 
       {expanded && (
-        <div className="fade-in flex flex-col gap-4 p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fade-in flex flex-col gap-4 p-4">
           <MacroGrid meal={meal} />
           {meal.notes && <p className="text-[13px] whitespace-pre-wrap text-ink2">{meal.notes}</p>}
           <div className="flex flex-wrap gap-2">
-            {!depleted && (
+            {!depleted && meal.pack_quantity > 0 && (
               <button
                 onClick={onEat}
                 className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"

@@ -25,6 +25,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
   const [search, setSearch] = useState('')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const candidates = useMemo(() => {
     const active = (meals ?? []).filter((m) => m.archived_at == null && m.pack_quantity > 0)
@@ -32,19 +33,22 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
     return q ? active.filter((m) => m.name.toLowerCase().includes(q)) : active
   }, [meals, search])
 
-  function save(entry: { meal_id?: string; title?: string }, close: () => void) {
-    addEntry.mutate(
-      {
+  // Close only once the entry is saved; on failure stay open so nothing is lost.
+  async function save(entry: { meal_id?: string; title?: string }, close: () => void) {
+    if (saving) return
+    setSaving(true)
+    try {
+      await addEntry.mutateAsync({
         plan_date: format(date, 'yyyy-MM-dd'),
         slot,
         notes: notes.trim() || null,
         ...entry,
-      },
-      {
-        onError: () => toast('Could not save', { tone: 'error' }),
-      },
-    )
-    close()
+      })
+      close()
+    } catch {
+      toast('Could not save — check your connection', { tone: 'error' })
+      setSaving(false)
+    }
   }
 
   return (
@@ -168,10 +172,10 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
             </label>
             <button
               type="submit"
-              disabled={!title.trim()}
+              disabled={!title.trim() || saving}
               className="pressable rounded-xl bg-tint py-3 text-[16px] font-semibold text-white disabled:opacity-40"
             >
-              Add to plan
+              {saving ? 'Adding…' : 'Add to plan'}
             </button>
           </form>
         )}
