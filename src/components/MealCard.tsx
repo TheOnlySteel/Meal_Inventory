@@ -108,7 +108,7 @@ export default function MealCard({
           <MacroGrid meal={meal} />
           {meal.notes && <p className="text-[13px] whitespace-pre-wrap text-ink2">{meal.notes}</p>}
           <div className="flex flex-wrap gap-2">
-            {!depleted && (
+            {!depleted && meal.pack_quantity > 0 && (
               <button
                 onClick={onEat}
                 className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"

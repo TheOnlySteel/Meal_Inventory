@@ -111,7 +111,8 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    const packQty = Math.max(parseInt(packs) || 0, 0)
+    // New meals need at least one pack; edits may zero out (stock correction).
+    const packQty = Math.max(parseInt(packs) || 0, editing ? 0 : 1)
     const values: MealInsert = {
       name: name.trim(),
       prep_date: prepDate,
@@ -288,7 +289,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
               <input
                 type="number"
                 inputMode="numeric"
-                min="0"
+                min={editing ? '0' : '1'}
                 className={inputCls}
                 value={packs}
                 required

@@ -8,6 +8,7 @@ import { useMembers, memberName } from '../hooks/useMembers'
 import { useToast } from '../hooks/useToast'
 import { useToday } from '../hooks/useToday'
 import { freshnessOf } from '../lib/freshness'
+import { eatErrorMessage } from '../lib/errors'
 import { groupChores, dueLabel } from '../lib/chores'
 import { fmtDateFull, fmtNum } from '../lib/format'
 import { pressableProps } from '../lib/a11y'
@@ -136,7 +137,10 @@ export default function Dashboard() {
           undo: () => uncompleteEntry.mutate(entry.id),
         })
       },
-      onError: () => toast('Could not update', { tone: 'error' }),
+      onError: (err) =>
+        toast(eatErrorMessage(err, entry.meals?.name ?? entry.title ?? undefined), {
+          tone: 'error',
+        }),
     })
   }
 
@@ -148,7 +152,7 @@ export default function Dashboard() {
           undo: () => undoEat.mutate(log_id),
         })
       },
-      onError: () => toast('Could not update', { tone: 'error' }),
+      onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
     })
   }
 
@@ -345,7 +349,8 @@ export default function Dashboard() {
                 <button
                   aria-label={`Mark one ${meal.name} as taken`}
                   onClick={(e) => tickOff(meal, e)}
-                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white"
+                  disabled={meal.pack_quantity === 0}
+                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white disabled:opacity-40"
                   style={{ background: 'var(--tint)' }}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24">
@@ -410,7 +415,8 @@ export default function Dashboard() {
                   <div className="flex gap-3">
                     <button
                       onClick={(e) => tickOff(liveDetail, e)}
-                      className="pressable flex-1 rounded-2xl bg-tint py-4 text-[17px] font-semibold text-white"
+                      disabled={liveDetail.pack_quantity === 0}
+                      className="pressable flex-1 rounded-2xl bg-tint py-4 text-[17px] font-semibold text-white disabled:opacity-40"
                     >
                       ✓&ensp;Take one pack
                     </button>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
+import { eatErrorMessage } from '../lib/errors'
 import { fmtNum, todayISO } from '../lib/format'
 import type { Meal, MealInsert, MealType, StorageLocation } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
@@ -92,17 +93,20 @@ export default function Manager() {
           undo: () => undoEat.mutate(log_id),
         })
       },
-      onError: () => toast('Could not update — check connection', { tone: 'error' }),
+      onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
     })
   }
 
   function handleSave(values: MealInsert, editingId?: string) {
     setFormOpen(false)
-    setEditing(null)
     setTemplate(null)
     if (editingId) {
+      // Editing an archived meal back to stock revives it (the Restore flow
+      // for depleted meals routes through this form).
+      const patch: Partial<Meal> = { ...values }
+      if (editing?.archived_at && values.pack_quantity > 0) patch.archived_at = null
       updateMeal.mutate(
-        { id: editingId, patch: values },
+        { id: editingId, patch },
         { onError: () => toast('Save failed', { tone: 'error' }) },
       )
     } else {
@@ -111,6 +115,7 @@ export default function Manager() {
         onError: () => toast('Save failed', { tone: 'error' }),
       })
     }
+    setEditing(null)
   }
 
   function handleReprep(meal: Meal) {
@@ -356,7 +361,16 @@ export default function Manager() {
                 undo: () => archiveMeal.mutate({ id: meal.id, archived: false }),
               })
             }}
-            onRestore={() => archiveMeal.mutate({ id: meal.id, archived: false })}
+            onRestore={() => {
+              if (meal.pack_quantity === 0) {
+                // Nothing left to restore — reopen the form so packs get set.
+                setEditing(meal)
+                setTemplate(null)
+                setFormOpen(true)
+              } else {
+                archiveMeal.mutate({ id: meal.id, archived: false })
+              }
+            }}
             onDelete={() => setConfirmDelete(meal)}
           />
         ))}
