@@ -59,7 +59,7 @@ export default function Dashboard() {
   useWakeLock()
   const now = useClock()
   const todayIso = useToday()
-  const { data: meals, isLoading } = useMeals()
+  const { data: meals, isLoading, error, refetch } = useMeals()
   const { data: plan } = usePlan()
   const { data: chores } = useChores()
   const { data: members } = useMembers()
@@ -178,6 +178,15 @@ export default function Dashboard() {
               <span className="text-[28px] font-bold tabular-nums">{stats.urgent}</span>
               <span className="text-[15px] font-medium">need eating</span>
             </div>
+          ) : error ? (
+            <div
+              className="flex items-baseline gap-2 rounded-2xl px-4 py-2"
+              style={{ background: 'color-mix(in srgb, var(--red) 14%, transparent)' }}
+            >
+              <span className="text-[15px] font-semibold" style={{ color: 'var(--red)' }}>
+                Offline
+              </span>
+            </div>
           ) : (
             <div
               className="flex items-baseline gap-2 rounded-2xl px-4 py-2"
@@ -293,7 +302,21 @@ export default function Dashboard() {
         {isLoading &&
           [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-40" />)}
 
-        {!isLoading && active.length === 0 && (
+        {/* A failed fetch must not masquerade as an empty larder */}
+        {error && active.length === 0 && !isLoading && (
+          <div className="col-span-full flex flex-col items-center gap-3 py-24">
+            <p className="text-[22px] font-semibold text-ink2">Can&rsquo;t reach the larder</p>
+            <p className="text-[15px] text-ink2">Check the connection and try again.</p>
+            <button
+              onClick={() => refetch()}
+              className="pressable rounded-2xl bg-tint px-8 py-3 text-[17px] font-semibold text-white"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !error && active.length === 0 && (
           <div className="col-span-full flex flex-col items-center gap-3 py-24">
             <Icon name="takeout" size={72} strokeWidth={1} className="text-ink3" />
             <p className="text-[22px] font-semibold text-ink2">The larder is empty</p>
