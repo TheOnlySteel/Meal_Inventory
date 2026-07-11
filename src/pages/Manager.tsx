@@ -97,25 +97,19 @@ export default function Manager() {
     })
   }
 
-  function handleSave(values: MealInsert, editingId?: string) {
-    setFormOpen(false)
-    setTemplate(null)
+  // Awaited by the form sheet: it stays open (showing the error) on failure
+  // and closes itself on success.
+  async function handleSave(values: MealInsert, editingId?: string) {
     if (editingId) {
       // Editing an archived meal back to stock revives it (the Restore flow
       // for depleted meals routes through this form).
       const patch: Partial<Meal> = { ...values }
       if (editing?.archived_at && values.pack_quantity > 0) patch.archived_at = null
-      updateMeal.mutate(
-        { id: editingId, patch },
-        { onError: () => toast('Save failed', { tone: 'error' }) },
-      )
+      await updateMeal.mutateAsync({ id: editingId, patch })
     } else {
-      addMeal.mutate(values, {
-        onSuccess: () => toast(`Added ${values.name}`),
-        onError: () => toast('Save failed', { tone: 'error' }),
-      })
+      await addMeal.mutateAsync(values)
+      toast(`Added ${values.name}`)
     }
-    setEditing(null)
   }
 
   function handleReprep(meal: Meal) {
@@ -152,16 +146,11 @@ export default function Manager() {
     setExpandedId(null)
   }
 
-  function handleRecipeSave(values: RecipeInsert) {
+  async function handleRecipeSave(values: RecipeInsert) {
     const source = recipeTemplate?.meal
-    setRecipeTemplate(null)
-    addRecipe.mutate(values, {
-      onSuccess: (recipe) => {
-        if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
-        toast(`Saved ${recipe.name} as a recipe`)
-      },
-      onError: () => toast('Save failed', { tone: 'error' }),
-    })
+    const recipe = await addRecipe.mutateAsync(values)
+    if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
+    toast(`Saved ${recipe.name} as a recipe`)
   }
 
   const filterChips: { key: Filter; label: string }[] = [

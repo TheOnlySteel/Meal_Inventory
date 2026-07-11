@@ -16,7 +16,8 @@ interface Props {
   /** All meals (incl. archived) for name autocomplete. */
   history: Meal[]
   onClose: () => void
-  onSave: (values: MealInsert, editingId?: string) => void
+  /** Resolves on success (the sheet closes itself); rejection keeps it open. */
+  onSave: (values: MealInsert, editingId?: string) => Promise<void>
 }
 
 type NumField = NutrientDef['key']
@@ -49,6 +50,8 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
     EXTENDED_NUTRIENTS.some((n) => base?.[n.key] != null),
   )
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const shelfDays = daysFromLife(shelfLife, location)
 
@@ -109,8 +112,9 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
     return Number.isFinite(n) ? n : null
   }
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent, close: () => void) {
     e.preventDefault()
+    if (saving) return
     // New meals need at least one pack; edits may zero out (stock correction).
     const packQty = Math.max(parseInt(packs) || 0, editing ? 0 : 1)
     const values: MealInsert = {
@@ -140,7 +144,15 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
       vit_c_mg: numOrNull('vit_c_mg'),
       vit_d_ug: numOrNull('vit_d_ug'),
     }
-    onSave(values, editing?.id)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSave(values, editing?.id)
+      close()
+    } catch {
+      setSaveError('Couldn’t save — check your connection and try again')
+      setSaving(false)
+    }
   }
 
   const inputCls =
@@ -154,7 +166,7 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
       panelClassName="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-elevated float-shadow sm:rounded-3xl"
     >
       {(close) => (
-      <form onSubmit={submit} className="flex min-h-0 flex-col overflow-hidden">
+      <form onSubmit={(e) => submit(e, close)} className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <button type="button" onClick={close} className="pressable text-[16px] text-tint">
             Cancel
@@ -162,12 +174,18 @@ export default function MealFormSheet({ editing, template, history, onClose, onS
           <h2 className="text-[17px] font-semibold">{editing ? 'Edit meal' : 'New meal'}</h2>
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="pressable text-[16px] font-semibold text-tint disabled:opacity-40"
           >
-            {editing ? 'Save' : 'Add'}
+            {saving ? 'Saving…' : editing ? 'Save' : 'Add'}
           </button>
         </div>
+
+        {saveError && (
+          <p role="alert" className="px-5 pb-1 text-[13px]" style={{ color: 'var(--red)' }}>
+            {saveError}
+          </p>
+        )}
 
         <div className="no-scrollbar flex flex-col gap-4 overflow-y-auto px-5 pt-2 pb-8 safe-b">
           <div className="relative flex flex-col gap-1.5">

@@ -75,22 +75,14 @@ export default function Recipes() {
 
   const detail = detailId ? ((recipes ?? []).find((r) => r.id === detailId) ?? null) : null
 
-  function handleSaveRecipe(values: RecipeInsert, editingId?: string) {
-    setFormOpen(false)
-    setEditing(null)
+  // Awaited by the form sheets: they stay open on failure, close on success.
+  async function handleSaveRecipe(values: RecipeInsert, editingId?: string) {
     if (editingId) {
-      updateRecipe.mutate(
-        { id: editingId, patch: values },
-        { onError: () => toast('Save failed', { tone: 'error' }) },
-      )
+      await updateRecipe.mutateAsync({ id: editingId, patch: values })
     } else {
-      addRecipe.mutate(values, {
-        onSuccess: (r) => {
-          toast(`Added ${r.name}`)
-          setDetailId(r.id)
-        },
-        onError: () => toast('Save failed', { tone: 'error' }),
-      })
+      const r = await addRecipe.mutateAsync(values)
+      toast(`Added ${r.name}`)
+      setDetailId(r.id)
     }
   }
 
@@ -98,12 +90,9 @@ export default function Recipes() {
     setLarderTemplate(mealTemplateFromRecipe(recipe, loc))
   }
 
-  function handleSaveMeal(values: MealInsert) {
-    setLarderTemplate(null)
-    addMeal.mutate(values, {
-      onSuccess: () => toast(`Added ${values.name} to the larder`),
-      onError: () => toast('Save failed', { tone: 'error' }),
-    })
+  async function handleSaveMeal(values: MealInsert) {
+    await addMeal.mutateAsync(values)
+    toast(`Added ${values.name} to the larder`)
   }
 
   function handleIngredientsToShopping(recipe: Recipe) {
