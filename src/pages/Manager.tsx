@@ -306,7 +306,7 @@ export default function Manager() {
 
         {error && (
           <p className="py-8 text-center text-[15px]" style={{ color: 'var(--red)' }}>
-            Couldn’t load meals. Pull to refresh or check connection.
+            Couldn’t load meals. Check your connection and try again.
           </p>
         )}
 

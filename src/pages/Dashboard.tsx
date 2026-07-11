@@ -11,7 +11,6 @@ import { freshnessOf } from '../lib/freshness'
 import { eatErrorMessage } from '../lib/errors'
 import { groupChores, dueLabel } from '../lib/chores'
 import { fmtDateFull, fmtNum } from '../lib/format'
-import { pressableProps } from '../lib/a11y'
 import type { Chore, Meal, PlanEntry } from '../lib/types'
 import { PLAN_SLOTS, STORAGE_LOCATIONS } from '../lib/types'
 import FreshnessRing from '../components/FreshnessRing'
@@ -57,6 +56,12 @@ function useWakeLock() {
 export default function Dashboard() {
   useRealtimeSync()
   useWakeLock()
+  useEffect(() => {
+    document.title = 'Kiosk · Larder'
+    return () => {
+      document.title = 'Larder'
+    }
+  }, [])
   const now = useClock()
   const todayIso = useToday()
   const { data: meals, isLoading, error, refetch } = useMeals()
@@ -328,12 +333,18 @@ export default function Dashboard() {
           return (
             <div
               key={meal.id}
-              onClick={() => setDetail(meal)}
-              {...pressableProps(() => setDetail(meal))}
-              className="pop-in pressable relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
+              className="pop-in relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card p-5 text-left card-shadow"
               style={{ borderTop: `4px solid ${fresh.color}` }}
             >
-              <div className="flex w-full items-start justify-between gap-3">
+              {/* Full-tile details button underneath; the tick button sits
+                  above it as a sibling, so no interactive nesting. */}
+              <button
+                type="button"
+                onClick={() => setDetail(meal)}
+                aria-label={`${meal.name} — details`}
+                className="pressable absolute inset-0 z-0 rounded-3xl"
+              />
+              <div className="pointer-events-none relative z-10 flex w-full items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-[19px] leading-snug font-semibold">{meal.name}</h3>
                   <p
@@ -354,7 +365,7 @@ export default function Dashboard() {
                 <FreshnessRing freshness={fresh} size={52} />
               </div>
 
-              <div className="mt-4 flex w-full items-end justify-between">
+              <div className="pointer-events-none relative z-10 mt-4 flex w-full items-end justify-between">
                 <div>
                   <p className="text-[28px] leading-none font-bold tabular-nums">
                     {meal.pack_quantity}
@@ -373,7 +384,7 @@ export default function Dashboard() {
                   aria-label={`Mark one ${meal.name} as taken`}
                   onClick={(e) => tickOff(meal, e)}
                   disabled={meal.pack_quantity === 0}
-                  className="pressable hit flex h-12 w-12 items-center justify-center rounded-full text-white disabled:opacity-40"
+                  className="pressable hit pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-white disabled:opacity-40"
                   style={{ background: 'var(--tint)' }}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24">

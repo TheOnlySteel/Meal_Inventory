@@ -1,10 +1,21 @@
 import type { Chore, HouseholdMember } from '../lib/types'
 import { dueLabel, recurrenceLabel } from '../lib/chores'
 import { todayISO } from '../lib/format'
+import type { ReactNode } from 'react'
 import { memberName } from '../hooks/useMembers'
-import { pressableProps } from '../lib/a11y'
 import MemberAvatar from './MemberAvatar'
 import Icon from './Icon'
+
+/** Chore body: a button when it opens the edit sheet, a plain div otherwise. */
+function BodyWrap({ onBody, children }: { onBody?: () => void; children: ReactNode }) {
+  return onBody ? (
+    <button type="button" onClick={onBody} className="min-w-0 flex-1 text-left">
+      {children}
+    </button>
+  ) : (
+    <div className="min-w-0 flex-1">{children}</div>
+  )
+}
 
 interface Props {
   chore: Chore
@@ -24,17 +35,12 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
 
   return (
     <div
-      onClick={onBody}
-      {...(onBody ? pressableProps(onBody) : {})}
       className={`pop-in flex items-center gap-3 rounded-2xl bg-card px-4 py-3 card-shadow ${
         done ? 'opacity-60' : ''
-      } ${onBody ? 'cursor-pointer' : ''}`}
+      }`}
     >
       <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggle()
-        }}
+        onClick={onToggle}
         aria-label={done ? 'Mark not done' : 'Mark done'}
         className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
         style={{
@@ -56,7 +62,8 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
         )}
       </button>
 
-      <div className="min-w-0 flex-1">
+      {/* Body is its own button (opens edit) so nothing interactive nests. */}
+      <BodyWrap onBody={onBody}>
         <p className={`truncate text-[16px] font-semibold ${done ? 'line-through' : ''}`}>
           {chore.title}
         </p>
@@ -80,14 +87,11 @@ export default function ChoreRow({ chore, members, onToggle, onBody, onDelete }:
             </span>
           )}
         </p>
-      </div>
+      </BodyWrap>
 
       {onDelete && (
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
+          onClick={onDelete}
           aria-label={`Delete ${chore.title}`}
           className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
         >
