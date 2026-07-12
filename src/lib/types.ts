@@ -193,10 +193,25 @@ export interface ShoppingItem {
   household_id: string
   name: string
   quantity: string | null
+  /** 'grocery' | 'costco' (free text so future stores need no migration) */
+  store: string
+  /** aisle key from CATEGORIES, or null = Other */
+  category: string | null
   checked_at: string | null
   sort_order: number
   created_by: string | null
   created_at: string
+}
+
+/** Per-household memory of where each item name lives (store + aisle). */
+export interface CatalogItem {
+  household_id: string
+  name_key: string
+  display_name: string
+  category: string | null
+  store: string
+  times_added: number
+  last_added_at: string
 }
 
 /** Result of the eat_pack RPC. */

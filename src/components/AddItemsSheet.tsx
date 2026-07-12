@@ -1,31 +1,57 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useShoppingMutations } from '../hooks/useShopping'
+import { useCatalog, useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
+import { STORES, nameKey, parseItemInput } from '../lib/groceries'
 import Sheet from './Sheet'
 
 /** Reminders-style rapid entry: each submit adds an item and keeps the field focused. */
 export default function AddItemsSheet({ onClose }: { onClose: () => void }) {
   const { addItem } = useShoppingMutations()
+  const { data: catalog } = useCatalog()
+  const { data: items } = useShopping()
   const { toast } = useToast()
   const [draft, setDraft] = useState('')
   const [added, setAdded] = useState(0)
+  // null = follow the item's remembered store; sticky once tapped so a run of
+  // new Costco items only needs one tap.
+  const [manualStore, setManualStore] = useState<string | null>(null)
+
+  const draftKey = nameKey(parseItemInput(draft).name)
+  const learnedStore = catalog?.find((c) => c.name_key === draftKey)?.store
+  const effectiveStore = manualStore ?? learnedStore ?? 'grocery'
+
+  // Most-added remembered items not already on the open list
+  const quickAdds = useMemo(() => {
+    const openKeys = new Set(
+      (items ?? []).filter((i) => i.checked_at == null).map((i) => nameKey(i.name)),
+    )
+    return (catalog ?? [])
+      .filter((c) => !openKeys.has(c.name_key) && c.times_added > 1)
+      .sort((a, b) => b.times_added - a.times_added)
+      .slice(0, 6)
+  }, [catalog, items])
+
+  function add(raw: string, store?: string) {
+    setAdded((n) => n + 1)
+    addItem.mutate(
+      { raw, store },
+      {
+        onError: () => {
+          setAdded((n) => Math.max(n - 1, 0))
+          setDraft((d) => d || raw)
+          toast('Could not add item', { tone: 'error' })
+        },
+      },
+    )
+  }
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    const name = draft.trim()
-    if (!name) return
-    // Rapid entry stays optimistic; a failure puts the draft back and
-    // corrects the counter instead of silently dropping the item.
+    const raw = draft.trim()
+    if (!raw) return
     setDraft('')
-    setAdded((n) => n + 1)
-    addItem.mutate(name, {
-      onError: () => {
-        setAdded((n) => Math.max(n - 1, 0))
-        setDraft((d) => d || name)
-        toast('Could not add item', { tone: 'error' })
-      },
-    })
+    add(raw, manualStore ?? undefined)
   }
 
   return (
@@ -46,13 +72,36 @@ export default function AddItemsSheet({ onClose }: { onClose: () => void }) {
               Done
             </button>
           </div>
+
+          {/* Destination store; auto-follows the item's memory until tapped */}
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg bg-card2 p-0.5">
+              {STORES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setManualStore(s.key)}
+                  aria-pressed={effectiveStore === s.key}
+                  className={`pressable rounded-md px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                    effectiveStore === s.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {manualStore == null && learnedStore && (
+              <span className="text-[12px] text-ink3">remembered</span>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <input
               type="text"
               value={draft}
               data-autofocus
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="e.g. Milk"
+              placeholder="e.g. Milk, 2L milk, 3x yoghurt"
               enterKeyHint="next"
               className="w-full rounded-xl border border-sep bg-elevated px-4 py-3 text-[16px] outline-none transition-shadow focus:ring-2 focus:ring-tint/60"
             />
@@ -67,6 +116,22 @@ export default function AddItemsSheet({ onClose }: { onClose: () => void }) {
               </svg>
             </button>
           </div>
+
+          {quickAdds.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {quickAdds.map((c) => (
+                <button
+                  key={c.name_key}
+                  type="button"
+                  onClick={() => add(c.display_name)}
+                  className="pressable flex items-center gap-1.5 rounded-full bg-card2 px-3 py-1.5 text-[13px] font-semibold"
+                >
+                  {c.display_name}
+                  {c.store === 'costco' && <span className="font-normal text-ink2">Costco</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </form>
       )}
     </Sheet>

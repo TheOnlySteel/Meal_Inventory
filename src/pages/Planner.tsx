@@ -179,10 +179,13 @@ export default function Planner() {
   }
 
   function onSendToShopping(entry: PlanEntry) {
-    addItem.mutate(displayName(entry), {
-      onSuccess: () => toast(`Added ${displayName(entry)} to shopping`),
-      onError: () => toast('Could not add', { tone: 'error' }),
-    })
+    addItem.mutate(
+      { raw: displayName(entry) },
+      {
+        onSuccess: () => toast(`Added ${displayName(entry)} to shopping`),
+        onError: () => toast('Could not add', { tone: 'error' }),
+      },
+    )
   }
 
   return (
