@@ -43,6 +43,7 @@ export function useTodayLog() {
         .from('meal_log')
         .select('*, meals(*)')
         .eq('household_id', hid!)
+        .eq('kind', 'consume')
         .gte('logged_at', since)
         .order('logged_at', { ascending: false })
       if (error) throw error
@@ -50,6 +51,28 @@ export function useTodayLog() {
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+  })
+}
+
+/** Packs marked as waste in the last 30 days (for the Larder stats strip). */
+export function useWaste30d() {
+  const { household } = useHousehold()
+  const hid = household?.id ?? null
+  return useQuery({
+    queryKey: [...logKey(hid), 'waste30'],
+    enabled: !!hid,
+    queryFn: async (): Promise<number> => {
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString()
+      const { data, error } = await supabase
+        .from('meal_log')
+        .select('packs')
+        .eq('household_id', hid!)
+        .eq('kind', 'waste')
+        .gte('logged_at', since)
+      if (error) throw error
+      return (data as { packs: number }[]).reduce((s, r) => s + r.packs, 0)
+    },
+    staleTime: 60_000,
   })
 }
 
@@ -149,16 +172,19 @@ export function useMealMutations() {
     onSettled: invalidate,
   })
 
-  /** Consume one pack atomically (decrement + log + auto-archive in one transaction). */
+  /** Consume packs atomically (decrement + log + auto-archive in one transaction). */
   const eatPack = useMutation({
-    mutationFn: async (meal: Meal): Promise<EatPackResult> => {
-      const { data, error } = await supabase.rpc('eat_pack', { p_meal_id: meal.id })
+    mutationFn: async ({ meal, packs }: { meal: Meal; packs: number }): Promise<EatPackResult> => {
+      const { data, error } = await supabase.rpc('eat_pack', {
+        p_meal_id: meal.id,
+        p_packs: packs,
+      })
       if (error) throw error
       return data as EatPackResult
     },
-    onMutate: async (meal) => {
+    onMutate: async ({ meal, packs }) => {
       const ctx = await snapshot()
-      const newQty = Math.max(meal.pack_quantity - 1, 0)
+      const newQty = Math.max(meal.pack_quantity - packs, 0)
       patchMealCache(qc, key, meal.id, {
         pack_quantity: newQty,
         archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
@@ -169,10 +195,51 @@ export function useMealMutations() {
     onSettled: invalidate,
   })
 
-  /** Reverse an eat_pack: restore quantity, unarchive if the eat archived it, drop the log row. */
+  /** Restock or waste packs (kind decides direction); same guards as eat_pack. */
+  const adjustStock = useMutation({
+    mutationFn: async ({
+      meal,
+      packs,
+      kind,
+    }: {
+      meal: Meal
+      packs: number
+      kind: 'restock' | 'waste'
+    }): Promise<EatPackResult> => {
+      const { data, error } = await supabase.rpc('adjust_stock', {
+        p_meal_id: meal.id,
+        p_packs: packs,
+        p_kind: kind,
+      })
+      if (error) throw error
+      return data as EatPackResult
+    },
+    onMutate: async ({ meal, packs, kind }) => {
+      const ctx = await snapshot()
+      if (kind === 'restock') {
+        const newQty = meal.pack_quantity + packs
+        patchMealCache(qc, key, meal.id, {
+          pack_quantity: newQty,
+          initial_pack_quantity: Math.max(meal.initial_pack_quantity, newQty),
+          archived_at: null,
+        })
+      } else {
+        const newQty = Math.max(meal.pack_quantity - packs, 0)
+        patchMealCache(qc, key, meal.id, {
+          pack_quantity: newQty,
+          archived_at: newQty === 0 ? new Date().toISOString() : meal.archived_at,
+        })
+      }
+      return ctx
+    },
+    onError: rollback,
+    onSettled: invalidate,
+  })
+
+  /** Reverse any stock event (consume, restock, or waste) from its log row. */
   const undoEat = useMutation({
     mutationFn: async (logId: string) => {
-      const { error } = await supabase.rpc('undo_eat', { p_log_id: logId })
+      const { error } = await supabase.rpc('undo_stock_event', { p_log_id: logId })
       if (error) throw error
     },
     onSettled: invalidate,
@@ -212,5 +279,5 @@ export function useMealMutations() {
     onSettled: invalidate,
   })
 
-  return { addMeal, updateMeal, eatPack, undoEat, archiveMeal, deleteMeal }
+  return { addMeal, updateMeal, eatPack, adjustStock, undoEat, archiveMeal, deleteMeal }
 }

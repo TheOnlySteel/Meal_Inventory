@@ -151,7 +151,7 @@ export default function Dashboard() {
 
   function tickOff(meal: Meal, e: React.MouseEvent) {
     e.stopPropagation()
-    eatPack.mutate(meal, {
+    eatPack.mutate({ meal, packs: 1 }, {
       onSuccess: ({ log_id, depleted }) => {
         toast(depleted ? `Last pack of ${meal.name}` : `Ate 1 · ${meal.name}`, {
           undo: () => undoEat.mutate(log_id),

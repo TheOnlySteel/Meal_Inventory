@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Meal } from '../lib/types'
 import { MEAL_TYPES, STORAGE_LOCATIONS } from '../lib/types'
 import { freshnessOf } from '../lib/freshness'
@@ -10,7 +11,8 @@ interface Props {
   meal: Meal
   expanded: boolean
   onToggle: () => void
-  onEat: () => void
+  onEat: (packs: number) => void
+  onAddPack: () => void
   onEdit: () => void
   onReprep: () => void
   onArchive: () => void
@@ -25,6 +27,7 @@ export default function MealCard({
   expanded,
   onToggle,
   onEat,
+  onAddPack,
   onEdit,
   onReprep,
   onArchive,
@@ -32,6 +35,10 @@ export default function MealCard({
   onDelete,
   onSaveAsRecipe,
 }: Props) {
+  const [eatCount, setEatCount] = useState(1)
+  useEffect(() => {
+    setEatCount(1)
+  }, [expanded])
   const fresh = freshnessOf(meal)
   const depleted = meal.archived_at != null
   const packsPct =
@@ -112,12 +119,35 @@ export default function MealCard({
           {meal.notes && <p className="text-[13px] whitespace-pre-wrap text-ink2">{meal.notes}</p>}
           <div className="flex flex-wrap gap-2">
             {!depleted && meal.pack_quantity > 0 && (
-              <button
-                onClick={onEat}
-                className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"
-              >
-                Eat one
-              </button>
+              <div className="flex min-w-0 flex-1 items-stretch gap-2">
+                {meal.pack_quantity > 1 && (
+                  <div className="flex shrink-0 items-center rounded-xl bg-card2">
+                    <button
+                      onClick={() => setEatCount((n) => Math.max(n - 1, 1))}
+                      aria-label="Eat fewer packs"
+                      className="pressable px-3 py-2.5 text-[17px] font-semibold text-tint"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-5 text-center text-[15px] font-semibold tabular-nums">
+                      {eatCount}
+                    </span>
+                    <button
+                      onClick={() => setEatCount((n) => Math.min(n + 1, meal.pack_quantity))}
+                      aria-label="Eat more packs"
+                      className="pressable px-3 py-2.5 text-[17px] font-semibold text-tint"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => onEat(eatCount)}
+                  className="pressable flex-1 rounded-xl bg-tint py-2.5 text-[15px] font-semibold text-white"
+                >
+                  Eat {eatCount === 1 ? 'one' : eatCount}
+                </button>
+              </div>
             )}
             {depleted && onRestore && (
               <button
@@ -127,6 +157,12 @@ export default function MealCard({
                 Restore
               </button>
             )}
+            <button
+              onClick={onAddPack}
+              className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[15px] font-semibold text-tint"
+            >
+              +1 pack
+            </button>
             <button
               onClick={onReprep}
               className="pressable flex-1 rounded-xl bg-card2 py-2.5 text-[15px] font-semibold text-tint"

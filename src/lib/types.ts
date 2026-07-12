@@ -90,6 +90,7 @@ export interface MealLogEntry {
   id: string
   meal_id: string
   packs: number
+  kind: 'consume' | 'restock' | 'waste'
   caused_depletion: boolean
   household_id: string
   logged_at: string
