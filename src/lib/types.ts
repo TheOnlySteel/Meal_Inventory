@@ -129,6 +129,7 @@ export interface PlanEntry {
   title: string | null
   servings: number
   notes: string | null
+  assigned_to: string | null
   completed_at: string | null
   log_id: string | null
   created_by: string | null
@@ -144,8 +145,14 @@ export type PlanEntryInsert = {
   title?: string
   servings?: number
   notes?: string | null
+  assigned_to?: string | null
   household_id?: string
 }
+
+/** Columns a plan entry can be edited with after creation. */
+export type PlanEntryPatch = Partial<
+  Pick<PlanEntry, 'plan_date' | 'slot' | 'title' | 'servings' | 'notes' | 'assigned_to'>
+>
 
 export interface Chore {
   id: string

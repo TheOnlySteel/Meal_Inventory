@@ -23,7 +23,7 @@ export default function ActionSheet({ title, message, actions, onClose }: Props)
     >
       {(close) => (
         <>
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-elevated float-shadow">
+          <div className="flex max-h-[60dvh] flex-col overflow-y-auto rounded-2xl bg-elevated float-shadow">
             <div className="flex flex-col gap-1 px-4 pt-4 pb-3 text-center">
               <p className="text-[15px] font-semibold">{title}</p>
               {message && <p className="text-[13px] text-ink2">{message}</p>}

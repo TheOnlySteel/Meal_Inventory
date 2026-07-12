@@ -13,6 +13,7 @@ interface Props {
   onToggle: () => void
   onEat: (packs: number) => void
   onAddPack: () => void
+  onPlan?: () => void
   onEdit: () => void
   onReprep: () => void
   onArchive: () => void
@@ -28,6 +29,7 @@ export default function MealCard({
   onToggle,
   onEat,
   onAddPack,
+  onPlan,
   onEdit,
   onReprep,
   onArchive,
@@ -163,6 +165,14 @@ export default function MealCard({
             >
               +1 pack
             </button>
+            {!depleted && meal.pack_quantity > 0 && onPlan && (
+              <button
+                onClick={onPlan}
+                className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[15px] font-semibold text-tint"
+              >
+                Plan
+              </button>
+            )}
             <button
               onClick={onReprep}
               className="pressable flex-1 rounded-xl bg-card2 py-2.5 text-[15px] font-semibold text-tint"

@@ -14,6 +14,7 @@ import RecipeFormSheet from '../components/RecipeFormSheet'
 import Icon from '../components/Icon'
 import ConfirmSheet from '../components/ConfirmSheet'
 import ActionSheet from '../components/ActionSheet'
+import PlanBatchSheet from '../components/PlanBatchSheet'
 import { useRecipeMutations } from '../hooks/useRecipes'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
@@ -40,6 +41,7 @@ export default function Manager() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Meal | null>(null)
   const [archiveChoice, setArchiveChoice] = useState<Meal | null>(null)
+  const [planTarget, setPlanTarget] = useState<Meal | null>(null)
   const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
   const { addRecipe } = useRecipeMutations()
 
@@ -382,6 +384,7 @@ export default function Manager() {
             onToggle={() => setExpandedId((id) => (id === meal.id ? null : meal.id))}
             onEat={(packs) => handleEat(meal, packs)}
             onAddPack={() => handleAddPack(meal)}
+            onPlan={() => setPlanTarget(meal)}
             onEdit={() => {
               setEditing(meal)
               setTemplate(null)
@@ -459,6 +462,8 @@ export default function Manager() {
           onClose={() => setConfirmDelete(null)}
         />
       )}
+
+      {planTarget && <PlanBatchSheet meal={planTarget} onClose={() => setPlanTarget(null)} />}
 
       {recipeTemplate && (
         <RecipeFormSheet
