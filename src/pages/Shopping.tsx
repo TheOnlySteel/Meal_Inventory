@@ -2,22 +2,47 @@ import { useMemo, useState } from 'react'
 import { useShopping, useShoppingMutations } from '../hooks/useShopping'
 import { useToast } from '../hooks/useToast'
 import type { ShoppingItem } from '../lib/types'
+import { CATEGORIES, categoryLabel, storeLabel } from '../lib/groceries'
 import Icon from '../components/Icon'
+import ActionSheet from '../components/ActionSheet'
 import AddItemsSheet from '../components/AddItemsSheet'
+
+type StoreFilter = 'all' | 'grocery' | 'costco'
 
 export default function Shopping() {
   const { data: items, isLoading, error } = useShopping()
-  const { setChecked, clearChecked, restoreItems, deleteItem } = useShoppingMutations()
+  const { setChecked, clearChecked, restoreItems, deleteItem, updateItem, rememberItem } =
+    useShoppingMutations()
   const { toast } = useToast()
   const [addOpen, setAddOpen] = useState(false)
+  const [storeFilter, setStoreFilter] = useState<StoreFilter>('all')
+  const [itemActions, setItemActions] = useState<ShoppingItem | null>(null)
+  const [categoryPick, setCategoryPick] = useState<ShoppingItem | null>(null)
 
   const { open, done } = useMemo(() => {
-    const all = items ?? []
+    const all = (items ?? []).filter((i) => storeFilter === 'all' || i.store === storeFilter)
     return {
       open: all.filter((i) => i.checked_at == null),
       done: all.filter((i) => i.checked_at != null),
     }
-  }, [items])
+  }, [items, storeFilter])
+
+  // Grocery items grouped in store-walk order; Costco is its own trip below.
+  const grocerySections = useMemo(() => {
+    const grocery = open.filter((i) => i.store !== 'costco')
+    const byCat = new Map<string | null, ShoppingItem[]>()
+    for (const i of grocery) {
+      const k = i.category && CATEGORIES.some((c) => c.key === i.category) ? i.category : null
+      byCat.set(k, [...(byCat.get(k) ?? []), i])
+    }
+    const sections = [
+      ...CATEGORIES.map((c) => ({ key: c.key, label: c.label, items: byCat.get(c.key) ?? [] })),
+      { key: 'other', label: 'Other', items: byCat.get(null) ?? [] },
+    ].filter((s) => s.items.length > 0)
+    return { sections, flat: sections.length === 1 && sections[0].key === 'other' }
+  }, [open])
+
+  const costcoOpen = useMemo(() => open.filter((i) => i.store === 'costco'), [open])
 
   function onClearChecked() {
     const cleared = [...done]
@@ -31,11 +56,54 @@ export default function Shopping() {
     })
   }
 
+  function moveStore(item: ShoppingItem) {
+    const store = item.store === 'costco' ? 'grocery' : 'costco'
+    updateItem.mutate(
+      { id: item.id, patch: { store } },
+      { onError: () => toast('Could not move', { tone: 'error' }) },
+    )
+    // Remember for future adds of this item
+    rememberItem.mutate({ name: item.name, patch: { store } })
+    toast(`${item.name} → ${storeLabel(store)}`)
+  }
+
+  function setCategory(item: ShoppingItem, category: string | null) {
+    updateItem.mutate(
+      { id: item.id, patch: { category } },
+      { onError: () => toast('Could not update', { tone: 'error' }) },
+    )
+    rememberItem.mutate({ name: item.name, patch: { category } })
+  }
+
+  const sectionHeaderCls =
+    'flex items-center gap-1.5 px-1 text-[13px] font-semibold tracking-wide text-ink2 uppercase'
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-canvas">
       <header className="glass sticky top-0 z-30 safe-t">
-        <div className="px-4 pt-3 pb-3">
+        <div className="px-4 pt-3 pb-2">
           <h1 className="text-[28px] font-bold tracking-tight">Shopping</h1>
+        </div>
+        <div className="flex px-4 pb-3">
+          <div className="flex rounded-lg bg-card2 p-0.5">
+            {(
+              [
+                { key: 'all' as const, label: 'All' },
+                { key: 'grocery' as const, label: 'Grocery' },
+                { key: 'costco' as const, label: 'Costco' },
+              ]
+            ).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStoreFilter(f.key)}
+                className={`pressable rounded-md px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+                  storeFilter === f.key ? 'bg-card text-ink card-shadow' : 'text-ink2'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -51,19 +119,48 @@ export default function Shopping() {
         {!isLoading && !error && open.length === 0 && done.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <Icon name="cart" size={52} strokeWidth={1.1} className="text-ink3" />
-            <p className="text-[17px] font-semibold">Nothing to buy</p>
+            <p className="text-[17px] font-semibold">
+              {storeFilter === 'costco' ? 'Nothing for Costco' : 'Nothing to buy'}
+            </p>
             <p className="max-w-60 text-[14px] text-ink2">
               Tap + to add items, or send “to make” meals here from the planner.
             </p>
           </div>
         )}
 
-        {open.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {open.map((item) => (
-              <Row key={item.id} item={item} onToggle={() => setChecked.mutate({ id: item.id, checked: true })} onDelete={() => deleteItem.mutate(item.id)} />
+        {/* Grocery aisles */}
+        {storeFilter !== 'costco' &&
+          grocerySections.sections.map((section) => (
+            <section key={section.key} className="flex flex-col gap-2">
+              {!grocerySections.flat && <h2 className={sectionHeaderCls}>{section.label}</h2>}
+              {section.items.map((item) => (
+                <Row
+                  key={item.id}
+                  item={item}
+                  onToggle={() => setChecked.mutate({ id: item.id, checked: true })}
+                  onMore={() => setItemActions(item)}
+                />
+              ))}
+            </section>
+          ))}
+
+        {/* Costco run */}
+        {storeFilter !== 'grocery' && costcoOpen.length > 0 && (
+          <section className="flex flex-col gap-2">
+            {storeFilter !== 'costco' && (
+              <h2 className={`${sectionHeaderCls} mt-2`}>
+                <Icon name="cart" size={14} /> Costco
+              </h2>
+            )}
+            {costcoOpen.map((item) => (
+              <Row
+                key={item.id}
+                item={item}
+                onToggle={() => setChecked.mutate({ id: item.id, checked: true })}
+                onMore={() => setItemActions(item)}
+              />
             ))}
-          </div>
+          </section>
         )}
 
         {done.length > 0 && (
@@ -81,7 +178,13 @@ export default function Shopping() {
             </div>
             <div className="flex flex-col gap-2">
               {done.map((item) => (
-                <Row key={item.id} item={item} checked onToggle={() => setChecked.mutate({ id: item.id, checked: false })} onDelete={() => deleteItem.mutate(item.id)} />
+                <Row
+                  key={item.id}
+                  item={item}
+                  checked
+                  onToggle={() => setChecked.mutate({ id: item.id, checked: false })}
+                  onMore={() => setItemActions(item)}
+                />
               ))}
             </div>
           </>
@@ -100,6 +203,41 @@ export default function Shopping() {
       </button>
 
       {addOpen && <AddItemsSheet onClose={() => setAddOpen(false)} />}
+
+      {itemActions && (
+        <ActionSheet
+          title={itemActions.name}
+          message={`${storeLabel(itemActions.store)} · ${categoryLabel(itemActions.category)}`}
+          actions={[
+            {
+              label:
+                itemActions.store === 'costco' ? 'Move to Grocery list' : 'Move to Costco list',
+              onSelect: () => moveStore(itemActions),
+            },
+            { label: 'Change aisle…', onSelect: () => setCategoryPick(itemActions) },
+            {
+              label: 'Delete',
+              tone: 'destructive',
+              onSelect: () => deleteItem.mutate(itemActions.id),
+            },
+          ]}
+          onClose={() => setItemActions(null)}
+        />
+      )}
+
+      {categoryPick && (
+        <ActionSheet
+          title={`Aisle for ${categoryPick.name}`}
+          actions={[
+            ...CATEGORIES.map((c) => ({
+              label: c.label,
+              onSelect: () => setCategory(categoryPick, c.key),
+            })),
+            { label: 'Other', onSelect: () => setCategory(categoryPick, null) },
+          ]}
+          onClose={() => setCategoryPick(null)}
+        />
+      )}
     </div>
   )
 }
@@ -108,12 +246,12 @@ function Row({
   item,
   checked = false,
   onToggle,
-  onDelete,
+  onMore,
 }: {
   item: ShoppingItem
   checked?: boolean
   onToggle: () => void
-  onDelete: () => void
+  onMore: () => void
 }) {
   return (
     <div
@@ -121,7 +259,7 @@ function Row({
         checked ? 'opacity-60' : ''
       }`}
     >
-      {/* Check-off is a real button; delete is a sibling, so nothing nests. */}
+      {/* Check-off is a real button; the options button is a sibling. */}
       <button
         type="button"
         onClick={onToggle}
@@ -154,12 +292,14 @@ function Row({
         </span>
       </button>
       <button
-        onClick={onDelete}
-        aria-label={`Delete ${item.name}`}
+        onClick={onMore}
+        aria-label={`Options for ${item.name}`}
         className="pressable hit flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink3"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24">
-          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
         </svg>
       </button>
     </div>

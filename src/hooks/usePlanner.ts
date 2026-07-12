@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format, parseISO, subDays } from 'date-fns'
 import { supabase } from '../lib/supabase'
-import type { EatPackResult, PlanEntry, PlanEntryInsert } from '../lib/types'
+import type { EatPackResult, PlanEntry, PlanEntryInsert, PlanEntryPatch } from '../lib/types'
 import { useHousehold } from './useHousehold'
 import { useToday } from './useToday'
 
@@ -74,6 +74,31 @@ export function usePlanMutations() {
     onSettled: invalidate,
   })
 
+  /** Batch insert for cook-once-eat-many planning. */
+  const addEntries = useMutation({
+    mutationFn: async (entries: PlanEntryInsert[]) => {
+      if (!hid) throw new Error('No household')
+      const rows = entries.map((e) => ({ ...e, household_id: hid }))
+      const { error } = await supabase.from('plan_entries').insert(rows)
+      if (error) throw error
+    },
+    onSettled: invalidate,
+  })
+
+  const updateEntry = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: PlanEntryPatch }) => {
+      const { error } = await supabase.from('plan_entries').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onMutate: async ({ id, patch }) => {
+      const ctx = await snapshot()
+      patchEntry(id, patch)
+      return ctx
+    },
+    onError: rollback,
+    onSettled: invalidate,
+  })
+
   const deleteEntry = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('plan_entries').delete().eq('id', id)
@@ -118,5 +143,5 @@ export function usePlanMutations() {
     onSettled: invalidate,
   })
 
-  return { addEntry, deleteEntry, completeEntry, uncompleteEntry }
+  return { addEntry, addEntries, updateEntry, deleteEntry, completeEntry, uncompleteEntry }
 }

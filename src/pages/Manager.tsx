@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMeals, useMealMutations, useTodayLog } from '../hooks/useMeals'
+import { useMeals, useMealMutations, useTodayLog, useWaste30d } from '../hooks/useMeals'
 import { useToast } from '../hooks/useToast'
 import { freshnessOf } from '../lib/freshness'
 import { eatErrorMessage } from '../lib/errors'
@@ -13,6 +13,8 @@ import HouseholdSheet from '../components/HouseholdSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
 import Icon from '../components/Icon'
 import ConfirmSheet from '../components/ConfirmSheet'
+import ActionSheet from '../components/ActionSheet'
+import PlanBatchSheet from '../components/PlanBatchSheet'
 import { useRecipeMutations } from '../hooks/useRecipes'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
@@ -22,7 +24,9 @@ type Sort = 'urgency' | 'newest' | 'name' | 'packs'
 export default function Manager() {
   const { data: meals, isLoading, error } = useMeals()
   const { data: todayLog } = useTodayLog()
-  const { addMeal, updateMeal, eatPack, undoEat, archiveMeal, deleteMeal } = useMealMutations()
+  const { data: wasted30d } = useWaste30d()
+  const { addMeal, updateMeal, eatPack, adjustStock, undoEat, archiveMeal, deleteMeal } =
+    useMealMutations()
   const { toast } = useToast()
 
   const [filter, setFilter] = useState<Filter>('active')
@@ -36,6 +40,8 @@ export default function Manager() {
   const [template, setTemplate] = useState<Meal | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Meal | null>(null)
+  const [archiveChoice, setArchiveChoice] = useState<Meal | null>(null)
+  const [planTarget, setPlanTarget] = useState<Meal | null>(null)
   const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
   const { addRecipe } = useRecipeMutations()
 
@@ -86,15 +92,54 @@ export default function Manager() {
     return sorted
   }, [all, active, filter, locFilter, typeFilter, search, sort])
 
-  function handleEat(meal: Meal) {
-    eatPack.mutate(meal, {
-      onSuccess: ({ log_id, depleted }) => {
-        toast(depleted ? `Last pack of ${meal.name} — moved to history` : `Ate 1 · ${meal.name}`, {
-          undo: () => undoEat.mutate(log_id),
-        })
+  function handleEat(meal: Meal, packs: number) {
+    eatPack.mutate(
+      { meal, packs },
+      {
+        onSuccess: ({ log_id, depleted }) => {
+          toast(
+            depleted
+              ? `Last pack of ${meal.name} — moved to history`
+              : `Ate ${packs} · ${meal.name}`,
+            { undo: () => undoEat.mutate(log_id) },
+          )
+        },
+        onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
       },
-      onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
+    )
+  }
+
+  function handleAddPack(meal: Meal) {
+    adjustStock.mutate(
+      { meal, packs: 1, kind: 'restock' },
+      {
+        onSuccess: ({ log_id }) => {
+          toast(`+1 pack · ${meal.name}`, { undo: () => undoEat.mutate(log_id) })
+        },
+        onError: () => toast('Could not update — check connection', { tone: 'error' }),
+      },
+    )
+  }
+
+  function archiveOnly(meal: Meal) {
+    archiveMeal.mutate({ id: meal.id, archived: true })
+    toast(`Archived ${meal.name}`, {
+      undo: () => archiveMeal.mutate({ id: meal.id, archived: false }),
     })
+  }
+
+  function tossAndArchive(meal: Meal) {
+    adjustStock.mutate(
+      { meal, packs: meal.pack_quantity, kind: 'waste' },
+      {
+        onSuccess: ({ log_id }) => {
+          toast(`Tossed ${meal.pack_quantity} · ${meal.name}`, {
+            undo: () => undoEat.mutate(log_id),
+          })
+        },
+        onError: (err) => toast(eatErrorMessage(err, meal.name), { tone: 'error' }),
+      },
+    )
   }
 
   // Awaited by the form sheet: it stays open (showing the error) on failure
@@ -189,6 +234,7 @@ export default function Manager() {
             { v: stats.packs, l: 'packs' },
             { v: fmtNum(stats.servings), l: 'servings' },
             { v: fmtNum(stats.kcal / 1000, 1) + 'k', l: 'kcal stored' },
+            ...(wasted30d ? [{ v: wasted30d, l: 'wasted · 30d' }] : []),
           ].map((s) => (
             <div
               key={s.l}
@@ -336,7 +382,9 @@ export default function Manager() {
             meal={meal}
             expanded={expandedId === meal.id}
             onToggle={() => setExpandedId((id) => (id === meal.id ? null : meal.id))}
-            onEat={() => handleEat(meal)}
+            onEat={(packs) => handleEat(meal, packs)}
+            onAddPack={() => handleAddPack(meal)}
+            onPlan={() => setPlanTarget(meal)}
             onEdit={() => {
               setEditing(meal)
               setTemplate(null)
@@ -345,10 +393,10 @@ export default function Manager() {
             onReprep={() => handleReprep(meal)}
             onSaveAsRecipe={() => handleSaveAsRecipe(meal)}
             onArchive={() => {
-              archiveMeal.mutate({ id: meal.id, archived: true })
-              toast(`Archived ${meal.name}`, {
-                undo: () => archiveMeal.mutate({ id: meal.id, archived: false }),
-              })
+              // Packs still in storage? Ask whether they were tossed so waste
+              // gets tracked; empty meals archive straight away.
+              if (meal.pack_quantity > 0) setArchiveChoice(meal)
+              else archiveOnly(meal)
             }}
             onRestore={() => {
               if (meal.pack_quantity === 0) {
@@ -387,6 +435,24 @@ export default function Manager() {
 
       {settingsOpen && <HouseholdSheet onClose={() => setSettingsOpen(false)} />}
 
+      {archiveChoice && (
+        <ActionSheet
+          title={`Archive “${archiveChoice.name}”?`}
+          message={`${archiveChoice.pack_quantity} pack${
+            archiveChoice.pack_quantity === 1 ? '' : 's'
+          } still in storage.`}
+          actions={[
+            {
+              label: `Tossed — log ${archiveChoice.pack_quantity} as waste`,
+              tone: 'destructive',
+              onSelect: () => tossAndArchive(archiveChoice),
+            },
+            { label: 'Archive only', onSelect: () => archiveOnly(archiveChoice) },
+          ]}
+          onClose={() => setArchiveChoice(null)}
+        />
+      )}
+
       {confirmDelete && (
         <ConfirmSheet
           title={`Delete “${confirmDelete.name}”?`}
@@ -396,6 +462,8 @@ export default function Manager() {
           onClose={() => setConfirmDelete(null)}
         />
       )}
+
+      {planTarget && <PlanBatchSheet meal={planTarget} onClose={() => setPlanTarget(null)} />}
 
       {recipeTemplate && (
         <RecipeFormSheet

@@ -90,6 +90,7 @@ export interface MealLogEntry {
   id: string
   meal_id: string
   packs: number
+  kind: 'consume' | 'restock' | 'waste'
   caused_depletion: boolean
   household_id: string
   logged_at: string
@@ -128,6 +129,7 @@ export interface PlanEntry {
   title: string | null
   servings: number
   notes: string | null
+  assigned_to: string | null
   completed_at: string | null
   log_id: string | null
   created_by: string | null
@@ -143,8 +145,14 @@ export type PlanEntryInsert = {
   title?: string
   servings?: number
   notes?: string | null
+  assigned_to?: string | null
   household_id?: string
 }
+
+/** Columns a plan entry can be edited with after creation. */
+export type PlanEntryPatch = Partial<
+  Pick<PlanEntry, 'plan_date' | 'slot' | 'title' | 'servings' | 'notes' | 'assigned_to'>
+>
 
 export interface Chore {
   id: string
@@ -185,10 +193,25 @@ export interface ShoppingItem {
   household_id: string
   name: string
   quantity: string | null
+  /** 'grocery' | 'costco' (free text so future stores need no migration) */
+  store: string
+  /** aisle key from CATEGORIES, or null = Other */
+  category: string | null
   checked_at: string | null
   sort_order: number
   created_by: string | null
   created_at: string
+}
+
+/** Per-household memory of where each item name lives (store + aisle). */
+export interface CatalogItem {
+  household_id: string
+  name_key: string
+  display_name: string
+  category: string | null
+  store: string
+  times_added: number
+  last_added_at: string
 }
 
 /** Result of the eat_pack RPC. */
