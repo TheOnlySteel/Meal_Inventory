@@ -64,7 +64,7 @@ export default function Dashboard() {
   }, [])
   const now = useClock()
   const todayIso = useToday()
-  const { data: meals, isLoading, error, refetch } = useMeals()
+  const { data: meals, isLoading, error, refetch, dataUpdatedAt } = useMeals()
   const { data: plan } = usePlan()
   const { data: chores } = useChores()
   const { data: members } = useMembers()
@@ -73,7 +73,15 @@ export default function Dashboard() {
   const { completeChore, uncompleteChore } = useChoreMutations()
   const { toast } = useToast()
   const [detail, setDetail] = useState<Meal | null>(null)
+  const [wakeUntil, setWakeUntil] = useState(0)
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Night screensaver: dim to a clock overnight; tap wakes it for 5 minutes
+  const hour = now.getHours()
+  const night = (hour >= 22 || hour < 6) && now.getTime() > wakeUntil
+
+  // "Synced Xm ago" — only worth surfacing when it's getting stale or erroring
+  const syncAgeMin = dataUpdatedAt ? Math.floor((now.getTime() - dataUpdatedAt) / 60_000) : null
 
   const active = useMemo(
     () => (meals ?? []).filter((m) => m.archived_at == null),
@@ -110,6 +118,9 @@ export default function Dashboard() {
       .filter((e) => e.plan_date === iso)
       .sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0))
   }, [plan, now])
+
+  // Hero: the first unfinished entry of today's plan
+  const nextUp = useMemo(() => todayPlan.find((e) => e.completed_at == null) ?? null, [todayPlan])
 
   // Overdue + due-today chores, plus one-offs finished today (shown ticked)
   const todayChores = useMemo(() => {
@@ -202,11 +213,78 @@ export default function Dashboard() {
               </span>
             </div>
           )}
-          <Link to="/" className="pressable text-[13px] font-semibold text-ink3">
-            Manage
-          </Link>
+          <div className="flex flex-col items-end gap-0.5">
+            <Link to="/" className="pressable text-[13px] font-semibold text-ink3">
+              Manage
+            </Link>
+            {syncAgeMin != null && (error || syncAgeMin >= 5) && (
+              <span
+                className="text-[11px] font-medium tabular-nums"
+                style={{ color: error ? 'var(--red)' : 'var(--ink-3)' }}
+              >
+                Synced {syncAgeMin < 1 ? 'just now' : `${syncAgeMin}m ago`}
+              </span>
+            )}
+          </div>
         </div>
       </header>
+
+      {/* Up next hero — today's first unfinished plan entry, writ large */}
+      {nextUp &&
+        (() => {
+          const slotDef = PLAN_SLOTS.find((s) => s.key === nextUp.slot)
+          const meal = nextUp.meals
+          const fresh = meal && meal.archived_at == null ? freshnessOf(meal) : null
+          return (
+            <div
+              className="mx-8 mb-4 flex shrink-0 items-center justify-between gap-6 rounded-3xl bg-card p-6 card-shadow"
+              style={{ borderLeft: `6px solid ${fresh?.color ?? 'var(--tint)'}` }}
+            >
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[13px] font-semibold tracking-wide text-tint uppercase">
+                  {slotDef && <Icon name={slotDef.icon} size={14} />} Up next · {slotDef?.label}
+                </p>
+                <h2 className="mt-1 truncate text-[34px] leading-tight font-bold tracking-tight">
+                  {meal?.name ?? nextUp.title}
+                </h2>
+                <p className="mt-1 text-[15px] font-medium text-ink2">
+                  {meal ? (
+                    <>
+                      {fresh?.label}
+                      <span className="text-ink3"> · </span>
+                      {meal.pack_quantity} pack{meal.pack_quantity === 1 ? '' : 's'} left
+                    </>
+                  ) : (
+                    'To make from scratch'
+                  )}
+                  {nextUp.assigned_to && (
+                    <>
+                      <span className="text-ink3"> · </span>
+                      {memberName(members, nextUp.assigned_to)}
+                    </>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => tickPlan(nextUp)}
+                aria-label={`Mark ${meal?.name ?? nextUp.title} done`}
+                className="pressable flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ background: 'var(--tint)' }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24">
+                  <path
+                    d="M4.5 12.5 10 18 19.5 6.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          )
+        })()}
 
       {/* Today's plan + chores strip */}
       {todayPlan.length + todayChores.length > 0 && (
@@ -303,7 +381,7 @@ export default function Dashboard() {
       )}
 
       {/* Grid */}
-      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 lg:grid-cols-4">
+      <main className="no-scrollbar grid flex-1 auto-rows-min grid-cols-3 gap-4 overflow-y-auto px-8 pb-8 portrait:grid-cols-2 lg:grid-cols-4">
         {isLoading &&
           [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-40" />)}
 
@@ -465,6 +543,32 @@ export default function Dashboard() {
               )
           }}
         </Sheet>
+      )}
+
+      {/* Overnight screensaver: dim clock, tap to wake for 5 minutes. The
+          slight per-minute drift keeps static pixels off OLED panels. */}
+      {night && (
+        <button
+          onClick={() => setWakeUntil(Date.now() + 5 * 60_000)}
+          aria-label="Wake display"
+          className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black"
+        >
+          <div
+            style={{
+              transform: `translate(${(now.getMinutes() % 5) * 6 - 12}px, ${
+                (now.getMinutes() % 3) * 8 - 8
+              }px)`,
+            }}
+            className="flex flex-col items-center"
+          >
+            <p className="text-[96px] leading-none font-bold tracking-tight text-white/20 tabular-nums">
+              {format(now, 'h:mm')}
+            </p>
+            <p className="mt-3 text-[20px] font-medium text-white/10">
+              {format(now, 'EEEE, MMMM d')}
+            </p>
+          </div>
+        </button>
       )}
     </div>
   )
