@@ -76,6 +76,9 @@ export interface Recipe extends NutrientValues {
   default_storage_location: StorageLocation
   default_shelf_life_days: number
   notes: string | null
+  /** storage path in the recipe-photos bucket */
+  photo_path: string | null
+  tags: string[]
   created_by: string | null
   created_at: string
   updated_at: string
@@ -83,8 +86,8 @@ export interface Recipe extends NutrientValues {
 
 export type RecipeInsert = Omit<
   Recipe,
-  'id' | 'household_id' | 'created_by' | 'created_at' | 'updated_at'
-> & { household_id?: string }
+  'id' | 'household_id' | 'photo_path' | 'tags' | 'created_by' | 'created_at' | 'updated_at'
+> & { household_id?: string; photo_path?: string | null; tags?: string[] }
 
 export interface MealLogEntry {
   id: string

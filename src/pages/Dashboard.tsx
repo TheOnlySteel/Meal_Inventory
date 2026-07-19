@@ -162,7 +162,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-canvas safe-t">
+    <div className="flex h-full flex-col overflow-hidden bg-canvas safe-t">
       {/* Header */}
       <header className="flex items-end justify-between px-8 pt-6 pb-4">
         <div>

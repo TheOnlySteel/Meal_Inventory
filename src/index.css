@@ -68,12 +68,20 @@
   --bottom-clearance: calc(5.25rem + env(safe-area-inset-bottom));
 }
 
+/* Fixed app shell: the document itself never scrolls — pages scroll inside
+   their own region (see AppLayout). This makes the iOS-standalone cold-launch
+   viewport glitch (document held at a phantom scroll offset until the first
+   swipe) structurally impossible, matching the kiosk's already-locked layout. */
 html {
+  height: 100%;
+  overflow: hidden;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
+  height: 100%;
+  overflow: hidden;
   margin: 0;
   background: var(--bg);
   color: var(--ink);
@@ -82,6 +90,11 @@ body {
   font-synthesis-weight: none;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 input, select, textarea, button {

@@ -36,7 +36,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas px-6">
+    <div className="relative h-full overflow-hidden bg-canvas">
       {/* ambient gradient blobs */}
       <div
         aria-hidden
@@ -49,9 +49,11 @@ export default function Login() {
         style={{ background: 'var(--tint)' }}
       />
 
+      {/* Scrollable so landscape phones and large text can reach every field */}
+      <div className="relative z-10 flex h-full flex-col overflow-y-auto overscroll-y-contain px-6 py-6">
       <form
         onSubmit={onSubmit}
-        className="pop-in relative z-10 flex w-full max-w-sm flex-col gap-4 rounded-3xl glass card-shadow p-8"
+        className="pop-in m-auto flex w-full max-w-sm flex-col gap-4 rounded-3xl glass card-shadow p-8"
       >
         <div className="mb-2 flex flex-col items-center gap-3">
           <img src="/favicon.svg" alt="" className="h-16 w-16 rounded-2xl card-shadow" />
@@ -124,6 +126,7 @@ export default function Login() {
           {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
         </button>
       </form>
+      </div>
     </div>
   )
 }

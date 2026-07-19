@@ -98,7 +98,7 @@ export function HouseholdGate({ children }: { children: ReactNode }) {
   const { household, loading, error, retry } = useHousehold()
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-canvas">
+      <div className="flex h-full items-center justify-center bg-canvas">
         <div className="skeleton h-10 w-10 rounded-full" />
       </div>
     )
@@ -107,7 +107,7 @@ export function HouseholdGate({ children }: { children: ReactNode }) {
   // not be mistaken for first-run onboarding.
   if (error && !household) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-canvas px-8 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-4 bg-canvas px-8 text-center">
         <p className="text-[17px] font-semibold">Can&rsquo;t reach the larder</p>
         <p className="text-[15px] text-ink2">Check your connection and try again.</p>
         <button

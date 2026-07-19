@@ -15,13 +15,8 @@ registerSW({
   },
 })
 
-// iOS standalone can launch with the document scrolled (page sits shifted up
-// with a black band below). Scroll positions aren't meaningful across launches
-// here, so pin the start position.
-if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
-window.addEventListener('load', () => {
-  requestAnimationFrame(() => window.scrollTo(0, 0))
-})
+// The document never scrolls (fixed shell in index.css; pages scroll inside
+// AppLayout), so no launch-time scroll pinning is needed anymore.
 
 const queryClient = new QueryClient({
   defaultOptions: {
