@@ -46,6 +46,26 @@ export function parseItemInput(raw: string): { name: string; quantity: string | 
   return { name: s, quantity: null }
 }
 
+/** Scale a recipe ingredient line's leading quantity ("500g flour" ×2 → "1000g flour"). */
+export function scaleIngredientLine(line: string, factor: number): string {
+  if (factor === 1) return line
+  const trimmed = line.trim()
+  const frac = trimmed.match(/^(\d+)\s*\/\s*(\d+)(\s*)(.*)$/)
+  if (frac) {
+    const n = (parseInt(frac[1]) / parseInt(frac[2])) * factor
+    return `${fmtScaled(n)}${frac[3] || ' '}${frac[4]}`
+  }
+  const m = trimmed.match(/^(\d+(?:[.,]\d+)?)(\s*)(.*)$/)
+  if (!m) return line
+  const n = parseFloat(m[1].replace(',', '.')) * factor
+  return `${fmtScaled(n)}${m[2]}${m[3]}`
+}
+
+const fmtScaled = (n: number) => {
+  const rounded = Math.round(n * 100) / 100
+  return String(rounded)
+}
+
 /** Sum two quantity strings when both are bare counts ("2" + "1" = "3"); null = can't merge. */
 export function mergeQuantities(a: string | null, b: string | null): string | null {
   const toCount = (q: string | null) =>

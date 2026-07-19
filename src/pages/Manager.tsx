@@ -16,6 +16,7 @@ import ConfirmSheet from '../components/ConfirmSheet'
 import ActionSheet from '../components/ActionSheet'
 import PlanBatchSheet from '../components/PlanBatchSheet'
 import { useRecipeMutations } from '../hooks/useRecipes'
+import { uploadRecipePhoto } from '../lib/photos'
 import type { Recipe, RecipeInsert } from '../lib/types'
 
 type Filter = 'active' | 'soon' | 'depleted'
@@ -43,7 +44,7 @@ export default function Manager() {
   const [archiveChoice, setArchiveChoice] = useState<Meal | null>(null)
   const [planTarget, setPlanTarget] = useState<Meal | null>(null)
   const [recipeTemplate, setRecipeTemplate] = useState<{ meal: Meal; values: Partial<Recipe> } | null>(null)
-  const { addRecipe } = useRecipeMutations()
+  const { addRecipe, updateRecipe } = useRecipeMutations()
 
   const all = useMemo(() => meals ?? [], [meals])
   const active = useMemo(() => all.filter((m) => m.archived_at == null), [all])
@@ -191,10 +192,18 @@ export default function Manager() {
     setExpandedId(null)
   }
 
-  async function handleRecipeSave(values: RecipeInsert) {
+  async function handleRecipeSave(values: RecipeInsert, _editingId?: string, photo?: File | null) {
     const source = recipeTemplate?.meal
     const recipe = await addRecipe.mutateAsync(values)
     if (source) updateMeal.mutate({ id: source.id, patch: { recipe_id: recipe.id } })
+    if (photo) {
+      try {
+        const path = await uploadRecipePhoto(recipe.household_id, recipe.id, photo)
+        updateRecipe.mutate({ id: recipe.id, patch: { photo_path: path } })
+      } catch {
+        toast('Photo upload failed', { tone: 'error' })
+      }
+    }
     toast(`Saved ${recipe.name} as a recipe`)
   }
 
@@ -205,7 +214,7 @@ export default function Manager() {
   ]
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-canvas">
+    <div className="mx-auto flex min-h-full max-w-2xl flex-col bg-canvas">
       {/* Header */}
       <header className="glass sticky top-0 z-30 safe-t">
         <div className="flex items-center justify-between px-4 pt-3 pb-1">

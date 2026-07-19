@@ -189,7 +189,7 @@ export default function Planner() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-canvas">
+    <div className="mx-auto flex min-h-full max-w-2xl flex-col bg-canvas">
       <header className="glass sticky top-0 z-30 safe-t">
         <div className="flex items-end justify-between px-4 pt-3 pb-1">
           <div>

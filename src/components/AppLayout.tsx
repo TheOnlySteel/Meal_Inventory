@@ -23,7 +23,12 @@ export default function AppLayout() {
 
   return (
     <>
-      <Outlet />
+      {/* The app's single scroll region — the document itself is a fixed
+          shell (index.css), so a launch-time viewport mis-measure can never
+          leave the page stuck at a phantom scroll offset. */}
+      <div id="app-scroll" className="h-full overflow-y-auto overscroll-y-contain">
+        <Outlet />
+      </div>
       <TabBar />
     </>
   )

@@ -81,8 +81,18 @@ export default function Sheet({
 
   useEffect(() => {
     const returnFocus = document.activeElement as HTMLElement | null
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    // The document itself never scrolls (fixed shell); lock the nearest
+    // scrollable ancestor so the page can't scroll behind the sheet.
+    let scroller: HTMLElement | null = null
+    for (let n = panelRef.current?.parentElement ?? null; n; n = n.parentElement) {
+      const { overflowY } = getComputedStyle(n)
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        scroller = n
+        break
+      }
+    }
+    const prevOverflow = scroller?.style.overflowY ?? ''
+    if (scroller) scroller.style.overflowY = 'hidden'
 
     // Focus the marked field (or the panel) once the slide-up settles
     const focusTimer = setTimeout(
@@ -112,7 +122,7 @@ export default function Sheet({
       clearTimeout(focusTimer)
       if (closeTimer.current) clearTimeout(closeTimer.current)
       panel?.removeEventListener('focusin', onFocusIn)
-      document.body.style.overflow = prevOverflow
+      if (scroller) scroller.style.overflowY = prevOverflow
       returnFocus?.focus?.()
     }
   }, [])

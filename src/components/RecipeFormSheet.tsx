@@ -1,19 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { NutrientValues, Recipe, RecipeInsert, StorageLocation } from '../lib/types'
 import { NUTRIENTS, STORAGE_LOCATIONS } from '../lib/types'
 import { DEFAULT_LIFE, daysFromLife, lifeFromDays, usesWeeks } from '../lib/shelfLife'
+import { recipePhotoUrl } from '../lib/photos'
 import NutrientFields from './NutrientFields'
 import Sheet from './Sheet'
 import Icon from './Icon'
 
 interface Props {
   editing?: Recipe | null
-  /** Prefill for "save meal as recipe". */
+  /** Prefill for "save meal as recipe" / URL import. */
   template?: Partial<Recipe> | null
   onClose: () => void
   /** Resolves on success (the sheet closes itself); rejection keeps it open. */
-  onSave: (values: RecipeInsert, editingId?: string) => Promise<void>
+  onSave: (values: RecipeInsert, editingId?: string, photo?: File | null) => Promise<void>
 }
 
 function toFormNums(src: Partial<Recipe> | null | undefined): Record<string, string> {
@@ -43,8 +44,20 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
   const [lifeTouched, setLifeTouched] = useState(base?.default_shelf_life_days != null)
   const [notes, setNotes] = useState(base?.notes ?? '')
   const [nums, setNums] = useState<Record<string, string>>(toFormNums(base))
+  const [tagsText, setTagsText] = useState((base?.tags ?? []).join(', '))
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const photoPreview = useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : recipePhotoUrl(base?.photo_path ?? null)),
+    [photoFile, base],
+  )
+  useEffect(() => {
+    if (!photoFile || !photoPreview) return
+    return () => URL.revokeObjectURL(photoPreview)
+  }, [photoFile, photoPreview])
 
   const shelfDays = daysFromLife(shelfLife, location)
 
@@ -93,11 +106,19 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
       calcium_mg: numOrNull('calcium_mg'),
       vit_c_mg: numOrNull('vit_c_mg'),
       vit_d_ug: numOrNull('vit_d_ug'),
+      tags: [
+        ...new Set(
+          tagsText
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      ],
     }
     setSaving(true)
     setSaveError(null)
     try {
-      await onSave(values, editing?.id)
+      await onSave(values, editing?.id, photoFile)
       close()
     } catch {
       setSaveError('Couldn’t save — check your connection and try again')
@@ -147,6 +168,44 @@ export default function RecipeFormSheet({ editing, template, onClose, onSave }: 
               data-autofocus={(!editing && !template) || undefined}
               placeholder="e.g. Cinnamon buns"
               onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+
+          <div className="flex items-center gap-3">
+            {photoPreview ? (
+              <img
+                src={photoPreview}
+                alt=""
+                className="h-16 w-24 shrink-0 rounded-xl object-cover card-shadow"
+              />
+            ) : (
+              <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-card2">
+                <Icon name="book" size={22} className="text-ink3" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="pressable rounded-xl bg-card2 px-4 py-2.5 text-[14px] font-semibold text-tint"
+            >
+              {photoPreview ? 'Replace photo' : 'Add photo'}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={labelCls}>Tags — comma separated</span>
+            <input
+              className={inputCls}
+              value={tagsText}
+              placeholder="weeknight, batch-friendly, veggie"
+              onChange={(e) => setTagsText(e.target.value)}
             />
           </label>
 

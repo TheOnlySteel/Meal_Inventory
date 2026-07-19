@@ -153,7 +153,7 @@ export default function PlanEntrySheet({ date, initialSlot, onClose }: Props) {
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-medium text-ink2">What are you making?</span>
               <input
-                autoFocus
+                data-autofocus
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Lasagna from scratch"

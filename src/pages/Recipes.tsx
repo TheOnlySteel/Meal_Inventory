@@ -9,9 +9,11 @@ import { DEFAULT_LIFE, daysFromLife } from '../lib/shelfLife'
 import { fmtNum, todayISO } from '../lib/format'
 import RecipeDetailSheet from '../components/RecipeDetailSheet'
 import RecipeFormSheet from '../components/RecipeFormSheet'
+import ImportRecipeSheet from '../components/ImportRecipeSheet'
 import MealFormSheet from '../components/MealFormSheet'
 import Icon from '../components/Icon'
 import ConfirmSheet from '../components/ConfirmSheet'
+import { fetchImageBlob, recipePhotoUrl, uploadRecipePhoto } from '../lib/photos'
 
 /** Meal-shaped template so MealFormSheet opens prefilled from a recipe. */
 function mealTemplateFromRecipe(r: Recipe, loc: StorageLocation): Meal {
@@ -61,28 +63,54 @@ export default function Recipes() {
   const { toast } = useToast()
 
   const [search, setSearch] = useState('')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Recipe | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importTemplate, setImportTemplate] = useState<Partial<Recipe> | null>(null)
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null)
   const [larderTemplate, setLarderTemplate] = useState<Meal | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Recipe | null>(null)
 
+  const allTags = useMemo(
+    () => [...new Set((recipes ?? []).flatMap((r) => r.tags))].sort(),
+    [recipes],
+  )
+
   const visible = useMemo(() => {
-    const all = recipes ?? []
+    let all = recipes ?? []
+    if (tagFilter) all = all.filter((r) => r.tags.includes(tagFilter))
     const q = search.trim().toLowerCase()
     return q ? all.filter((r) => r.name.toLowerCase().includes(q)) : all
-  }, [recipes, search])
+  }, [recipes, search, tagFilter])
 
   const detail = detailId ? ((recipes ?? []).find((r) => r.id === detailId) ?? null) : null
 
+  // Photo failures don't block the save — the recipe row already exists.
+  async function attachPhoto(recipeId: string, householdId: string, blob: Blob) {
+    try {
+      const path = await uploadRecipePhoto(householdId, recipeId, blob)
+      await updateRecipe.mutateAsync({ id: recipeId, patch: { photo_path: path } })
+    } catch {
+      toast('Photo upload failed', { tone: 'error' })
+    }
+  }
+
   // Awaited by the form sheets: they stay open on failure, close on success.
-  async function handleSaveRecipe(values: RecipeInsert, editingId?: string) {
+  async function handleSaveRecipe(values: RecipeInsert, editingId?: string, photo?: File | null) {
     if (editingId) {
       await updateRecipe.mutateAsync({ id: editingId, patch: values })
+      const existing = (recipes ?? []).find((r) => r.id === editingId)
+      if (photo && existing) await attachPhoto(editingId, existing.household_id, photo)
     } else {
       const r = await addRecipe.mutateAsync(values)
       toast(`Added ${r.name}`)
       setDetailId(r.id)
+      // Prefer a hand-picked photo; otherwise try the imported page's image
+      const blob = photo ?? (pendingImageUrl ? await fetchImageBlob(pendingImageUrl) : null)
+      if (blob) await attachPhoto(r.id, r.household_id, blob)
+      setPendingImageUrl(null)
     }
   }
 
@@ -95,8 +123,7 @@ export default function Recipes() {
     toast(`Added ${values.name} to the larder`)
   }
 
-  function handleIngredientsToShopping(recipe: Recipe) {
-    const lines = ingredientLines(recipe)
+  function handleIngredientsToShopping(lines: string[]) {
     if (lines.length === 0) return
     addItems.mutate(lines, {
       onSuccess: (rows) => {
@@ -109,12 +136,18 @@ export default function Recipes() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-canvas">
+    <div className="mx-auto flex min-h-full max-w-2xl flex-col bg-canvas">
       <header className="glass sticky top-0 z-30 safe-t">
-        <div className="px-4 pt-3 pb-1">
+        <div className="flex items-center justify-between px-4 pt-3 pb-1">
           <h1 className="text-[28px] font-bold tracking-tight">Recipes</h1>
+          <button
+            onClick={() => setImportOpen(true)}
+            className="pressable rounded-full bg-card2 px-4 py-1.5 text-[13px] font-semibold text-tint"
+          >
+            Import from web
+          </button>
         </div>
-        <div className="px-4 pb-3">
+        <div className="flex flex-col gap-2 px-4 pb-3">
           <input
             type="search"
             value={search}
@@ -122,6 +155,29 @@ export default function Recipes() {
             placeholder="Search recipes"
             className="w-full rounded-xl bg-card2 px-4 py-2 text-[16px] outline-none placeholder:text-ink3 focus:ring-2 focus:ring-tint/50"
           />
+          {allTags.length > 0 && (
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+              <button
+                onClick={() => setTagFilter(null)}
+                className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                  tagFilter == null ? 'bg-tint text-white' : 'bg-card2 text-ink2'
+                }`}
+              >
+                All
+              </button>
+              {allTags.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTagFilter((cur) => (cur === t ? null : t))}
+                  className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                    tagFilter === t ? 'bg-tint text-white' : 'bg-card2 text-ink2'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -151,12 +207,21 @@ export default function Recipes() {
         {visible.map((recipe) => {
           const loc = STORAGE_LOCATIONS.find((l) => l.key === recipe.default_storage_location)
           const lineCount = ingredientLines(recipe).length
+          const photo = recipePhotoUrl(recipe.photo_path)
           return (
             <button
               key={recipe.id}
               onClick={() => setDetailId(recipe.id)}
               className="pop-in pressable flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 text-left card-shadow"
             >
+              {photo && (
+                <img
+                  src={photo}
+                  alt=""
+                  loading="lazy"
+                  className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                />
+              )}
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-[17px] leading-tight font-semibold">{recipe.name}</h3>
                 <p className="mt-0.5 flex items-center gap-1 text-[13px] text-ink2">
@@ -208,16 +273,31 @@ export default function Recipes() {
           }}
           onDelete={() => setConfirmDelete(detail)}
           onSendToLarder={(loc) => handleSendToLarder(detail, loc)}
-          onIngredientsToShopping={() => handleIngredientsToShopping(detail)}
+          onIngredientsToShopping={handleIngredientsToShopping}
+        />
+      )}
+
+      {importOpen && (
+        <ImportRecipeSheet
+          onClose={() => setImportOpen(false)}
+          onImported={(template, imageUrl) => {
+            setImportTemplate(template)
+            setPendingImageUrl(imageUrl)
+            setEditing(null)
+            setFormOpen(true)
+          }}
         />
       )}
 
       {formOpen && (
         <RecipeFormSheet
           editing={editing}
+          template={importTemplate}
           onClose={() => {
             setFormOpen(false)
             setEditing(null)
+            setImportTemplate(null)
+            setPendingImageUrl(null)
           }}
           onSave={handleSaveRecipe}
         />

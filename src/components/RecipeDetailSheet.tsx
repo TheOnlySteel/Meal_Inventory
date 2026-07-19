@@ -1,6 +1,10 @@
+import { useMemo, useState } from 'react'
 import type { Recipe, StorageLocation } from '../lib/types'
 import { STORAGE_LOCATIONS } from '../lib/types'
 import { ingredientLines } from '../hooks/useRecipes'
+import { scaleIngredientLine } from '../lib/groceries'
+import { recipePhotoUrl } from '../lib/photos'
+import { fmtNum } from '../lib/format'
 import MacroGrid from './MacroGrid'
 import Sheet from './Sheet'
 import Icon from './Icon'
@@ -11,10 +15,18 @@ interface Props {
   onEdit: () => void
   onDelete: () => void
   onSendToLarder: (location: StorageLocation) => void
-  onIngredientsToShopping: () => void
+  /** Receives the (scaled) ingredient lines currently shown. */
+  onIngredientsToShopping: (lines: string[]) => void
 }
 
-/** Recipe detail: read the recipe, then send the cooked batch to the larder. */
+const SCALES = [
+  { factor: 0.5, label: '½×' },
+  { factor: 1, label: '1×' },
+  { factor: 2, label: '2×' },
+  { factor: 3, label: '3×' },
+]
+
+/** Recipe detail: read the recipe, scale it, then send the cooked batch to the larder. */
 export default function RecipeDetailSheet({
   recipe,
   onClose,
@@ -23,7 +35,12 @@ export default function RecipeDetailSheet({
   onSendToLarder,
   onIngredientsToShopping,
 }: Props) {
-  const lines = ingredientLines(recipe)
+  const [scale, setScale] = useState(1)
+  const lines = useMemo(
+    () => ingredientLines(recipe).map((l) => scaleIngredientLine(l, scale)),
+    [recipe, scale],
+  )
+  const photo = recipePhotoUrl(recipe.photo_path)
   const defaultFirst = [...STORAGE_LOCATIONS].sort((a, b) =>
     a.key === recipe.default_storage_location ? -1 : b.key === recipe.default_storage_location ? 1 : 0,
   )
@@ -55,6 +72,14 @@ export default function RecipeDetailSheet({
         </div>
 
         <div className="no-scrollbar flex flex-col gap-5 overflow-y-auto px-5 pt-1 pb-8 safe-b">
+          {photo && (
+            <img
+              src={photo}
+              alt=""
+              className="aspect-[16/9] w-full rounded-2xl object-cover card-shadow"
+            />
+          )}
+
           <div>
             <h2 className="text-[26px] leading-tight font-bold tracking-tight">{recipe.name}</h2>
             <p className="mt-1 flex items-center gap-1 text-[13px] text-ink2">
@@ -67,6 +92,18 @@ export default function RecipeDetailSheet({
               Usually {recipe.default_storage_location} · {recipe.default_shelf_life_days} day
               {recipe.default_shelf_life_days === 1 ? '' : 's'} shelf life
             </p>
+            {recipe.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {recipe.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full bg-card2 px-2.5 py-1 text-[12px] font-semibold text-ink2"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {lines.length > 0 && (
@@ -76,12 +113,34 @@ export default function RecipeDetailSheet({
                   Ingredients
                 </h3>
                 <button
-                  onClick={onIngredientsToShopping}
+                  onClick={() => onIngredientsToShopping(lines)}
                   className="pressable rounded-full bg-card2 px-3 py-1 text-[12px] font-semibold text-tint"
                 >
                   + Shopping list
                 </button>
               </div>
+
+              {/* Batch scaler: quantities below (and the shopping send) follow it */}
+              <div className="flex items-center justify-between">
+                <div className="flex rounded-lg bg-card2 p-0.5">
+                  {SCALES.map((s) => (
+                    <button
+                      key={s.factor}
+                      onClick={() => setScale(s.factor)}
+                      aria-pressed={scale === s.factor}
+                      className={`pressable rounded-md px-3 py-1 text-[13px] font-semibold transition-colors ${
+                        scale === s.factor ? 'bg-card text-ink card-shadow' : 'text-ink2'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[12px] font-medium text-ink2">
+                  {fmtNum(Number(recipe.servings_per_pack) * scale)} serv/pack
+                </span>
+              </div>
+
               <ul className="flex flex-col gap-1 rounded-2xl bg-card2 px-4 py-3">
                 {lines.map((line, i) => (
                   <li key={i} className="flex gap-2 text-[15px]">

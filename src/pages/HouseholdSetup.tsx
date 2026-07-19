@@ -33,7 +33,7 @@ export default function HouseholdSetup() {
     'rounded-xl border border-sep bg-elevated px-4 py-3 text-[16px] outline-none transition-shadow focus:ring-2 focus:ring-tint/60'
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas px-6">
+    <div className="relative h-full overflow-hidden bg-canvas">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full opacity-25 blur-3xl"
@@ -45,7 +45,9 @@ export default function HouseholdSetup() {
         style={{ background: 'var(--tint)' }}
       />
 
-      <div className="pop-in relative z-10 flex w-full max-w-sm flex-col gap-5 rounded-3xl glass card-shadow p-8">
+      {/* Scrollable so landscape phones and large text can reach every field */}
+      <div className="relative z-10 flex h-full flex-col overflow-y-auto overscroll-y-contain px-6 py-6">
+      <div className="pop-in m-auto flex w-full max-w-sm flex-col gap-5 rounded-3xl glass card-shadow p-8">
         <div className="text-center">
           <Icon name="house" size={44} strokeWidth={1.3} className="mx-auto text-tint" />
           <h1 className="mt-2 text-[24px] font-bold tracking-tight">Set up your household</h1>
@@ -115,6 +117,7 @@ export default function HouseholdSetup() {
         >
           Sign out
         </button>
+      </div>
       </div>
     </div>
   )

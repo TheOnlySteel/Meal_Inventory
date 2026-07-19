@@ -16,7 +16,7 @@ function Protected({ children }: { children: ReactNode }) {
   const location = useLocation()
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-canvas">
+      <div className="flex h-full items-center justify-center bg-canvas">
         <div className="skeleton h-10 w-10 rounded-full" />
       </div>
     )
